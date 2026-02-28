@@ -1,0 +1,829 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-02-11",
+  "normalization_rules": {
+    "case_sensitive": false,
+    "trim_whitespace": true,
+    "replace_hyphen_with_underscore": true
+  },
+  "canonical_to_aliases": {
+    "black_hair": [
+      "黑发",
+      "黑色头发",
+      "blackhair"
+    ],
+    "gray_hair": [
+      "灰发",
+      "灰毛",
+      "grey hair",
+      "gray hair"
+    ],
+    "brown_hair": [
+      "棕发",
+      "褐发",
+      "brownhair"
+    ],
+    "blonde_hair": [
+      "金发",
+      "黄发",
+      "blond_hair",
+      "blondehair"
+    ],
+    "ash_blonde_hair": [
+      "亚麻金发",
+      "亚麻色金发",
+      "ash blonde"
+    ],
+    "platinum_blonde_hair": [
+      "白金发",
+      "铂金发",
+      "platinum blonde"
+    ],
+    "white_hair": [
+      "白发",
+      "白毛",
+      "whitehair"
+    ],
+    "silver_hair": [
+      "银发",
+      "银毛",
+      "silverhair"
+    ],
+    "blue_hair": [
+      "蓝发",
+      "蓝毛",
+      "蓝色头发",
+      "hair_blue"
+    ],
+    "aqua_hair": [
+      "水蓝发",
+      "青蓝发",
+      "aqua hair"
+    ],
+    "teal_hair": [
+      "蓝绿色发",
+      "青绿色发",
+      "teal hair"
+    ],
+    "pink_hair": [
+      "粉发",
+      "粉毛",
+      "粉色头发",
+      "pinkhair"
+    ],
+    "magenta_hair": [
+      "品红发",
+      "洋红发",
+      "magenta hair"
+    ],
+    "purple_hair": [
+      "紫发",
+      "紫毛",
+      "purplehair"
+    ],
+    "green_hair": [
+      "绿发",
+      "绿毛",
+      "greenhair"
+    ],
+    "red_hair": [
+      "红发",
+      "红毛",
+      "redhair"
+    ],
+    "orange_hair": [
+      "橙发",
+      "橘发",
+      "orangehair"
+    ],
+    "multicolored_hair": [
+      "多色发",
+      "渐变发",
+      "彩发",
+      "rainbow_hair"
+    ],
+    "two_tone_hair": [
+      "双色发",
+      "双色头发",
+      "two tone hair"
+    ],
+    "split_color_hair": [
+      "阴阳染发",
+      "对半染发",
+      "split hair color"
+    ],
+    "gradient_hair": [
+      "渐变发",
+      "渐层发色",
+      "gradient hair"
+    ],
+    "ombre_hair": [
+      "挑染渐层发",
+      "挑染渐变",
+      "ombre hair"
+    ],
+    "streaked_hair": [
+      "挑染发束",
+      "条纹染发",
+      "streaked hair"
+    ],
+    "inner_color_hair": [
+      "内层染发",
+      "内染",
+      "inner color hair"
+    ],
+    "light_tone_hair": [
+      "浅色调发",
+      "浅发色",
+      "light tone hair"
+    ],
+    "dark_tone_hair": [
+      "深色调发",
+      "深发色",
+      "dark tone hair"
+    ],
+    "very_short_hair": [
+      "超短发",
+      "极短发"
+    ],
+    "short_hair": [
+      "短发",
+      "short hair"
+    ],
+    "medium_hair": [
+      "中长发",
+      "中发"
+    ],
+    "long_hair": [
+      "长发",
+      "long hair"
+    ],
+    "very_long_hair": [
+      "超长发",
+      "及地长发"
+    ],
+    "bob_cut": [
+      "波波头",
+      "bob头",
+      "bob cut"
+    ],
+    "pixie_cut": [
+      "精灵短发",
+      "pixie cut",
+      "pixie hair"
+    ],
+    "straight_hair": [
+      "直发",
+      "顺直发",
+      "straight hair"
+    ],
+    "wavy_hair": [
+      "波浪发",
+      "微卷发",
+      "wavy hair"
+    ],
+    "curly_hair": [
+      "卷发",
+      "大波浪卷",
+      "curly hair"
+    ],
+    "drill_hair": [
+      "钻头卷",
+      "螺旋卷",
+      "drill curls"
+    ],
+    "twintails": [
+      "双马尾",
+      "双尾",
+      "twin_tails",
+      "2tails"
+    ],
+    "short_twintails": [
+      "短双马尾",
+      "短双尾",
+      "short twintails"
+    ],
+    "long_twintails": [
+      "长双马尾",
+      "长双尾",
+      "long twintails"
+    ],
+    "ponytail": [
+      "马尾",
+      "单马尾",
+      "poni"
+    ],
+    "high_ponytail": [
+      "高马尾",
+      "高位马尾",
+      "high ponytail"
+    ],
+    "low_ponytail": [
+      "低马尾",
+      "低位马尾",
+      "low ponytail"
+    ],
+    "side_ponytail": [
+      "侧马尾",
+      "side-tail",
+      "side ponytail"
+    ],
+    "braid": [
+      "辫子",
+      "麻花辫",
+      "braids"
+    ],
+    "side_braid": [
+      "侧辫",
+      "侧边麻花辫",
+      "side braid"
+    ],
+    "bun_hair": [
+      "丸子头",
+      "包子头",
+      "hair bun"
+    ],
+    "half_updo": [
+      "半扎发",
+      "半束发",
+      "half updo"
+    ],
+    "ahoge": [
+      "呆毛",
+      "天线毛"
+    ],
+    "blue_eyes": [
+      "蓝瞳",
+      "蓝眼",
+      "blue eyes"
+    ],
+    "red_eyes": [
+      "红瞳",
+      "红眼",
+      "red eyes"
+    ],
+    "green_eyes": [
+      "绿瞳",
+      "绿眼",
+      "green eyes"
+    ],
+    "purple_eyes": [
+      "紫瞳",
+      "紫眼",
+      "purple eyes"
+    ],
+    "golden_eyes": [
+      "金瞳",
+      "金眼",
+      "amber eyes"
+    ],
+    "pink_eyes": [
+      "粉瞳",
+      "粉眼",
+      "pink eyes"
+    ],
+    "brown_eyes": [
+      "棕瞳",
+      "褐瞳",
+      "brown eyes"
+    ],
+    "black_eyes": [
+      "黑瞳",
+      "黑眼",
+      "black eyes"
+    ],
+    "heterochromia": [
+      "异色瞳",
+      "鸳鸯眼",
+      "different_iris"
+    ],
+    "narrow_eyes": [
+      "眯眯眼",
+      "细眼",
+      "narrow eyes"
+    ],
+    "teen_girl": [
+      "少女",
+      "少女体型",
+      "teen girl"
+    ],
+    "oneesan": [
+      "御姐",
+      "御姐体型",
+      "onee san"
+    ],
+    "mature_woman": [
+      "熟女",
+      "成熟御姐",
+      "mature female"
+    ],
+    "flat_chest": [
+      "贫乳",
+      "平胸",
+      "flat",
+      "no_breasts"
+    ],
+    "small_breasts": [
+      "小胸",
+      "小乳",
+      "small bust"
+    ],
+    "medium_breasts": [
+      "中胸",
+      "普通胸",
+      "medium bust"
+    ],
+    "large_breasts": [
+      "巨乳",
+      "大胸",
+      "爆乳",
+      "large bust",
+      "huge_breasts",
+      "gigantic_breasts"
+    ],
+    "long_legs": [
+      "长腿",
+      "腿长"
+    ],
+    "thick_thighs": [
+      "肉腿",
+      "粗腿",
+      "thick thighs"
+    ],
+    "school_uniform": [
+      "校服",
+      "制服",
+      "jk_uniform"
+    ],
+    "maid_uniform": [
+      "女仆装",
+      "maid"
+    ],
+    "idol_costume": [
+      "偶像服",
+      "舞台服",
+      "idol outfit"
+    ],
+    "battle_suit": [
+      "战斗服",
+      "作战服",
+      "combat suit"
+    ],
+    "sci_fi_suit": [
+      "科幻服",
+      "未来服",
+      "techwear"
+    ],
+    "casual_wear": [
+      "日常服",
+      "便服",
+      "casual"
+    ],
+    "streetwear": [
+      "街头风",
+      "街头服",
+      "street style"
+    ],
+    "cheongsam": [
+      "旗袍",
+      "qipao"
+    ],
+    "kimono": [
+      "和服",
+      "浴衣",
+      "yukata"
+    ],
+    "swimsuit": [
+      "泳装",
+      "比基尼",
+      "bikini"
+    ],
+    "bunny_suit": [
+      "兔女郎",
+      "兔女郎装",
+      "bunnygirl"
+    ],
+    "military_uniform": [
+      "军装",
+      "军事制服",
+      "military"
+    ],
+    "dress": [
+      "连衣裙",
+      "裙装",
+      "one_piece_dress"
+    ],
+    "skirt": [
+      "裙子",
+      "半身裙",
+      "skirted"
+    ],
+    "pleated_skirt": [
+      "百褶裙",
+      "格裙",
+      "pleated"
+    ],
+    "miniskirt": [
+      "超短裙",
+      "迷你裙",
+      "mini_skirt"
+    ],
+    "short_shorts": [
+      "热裤",
+      "短裤",
+      "short shorts"
+    ],
+    "thighhighs": [
+      "过膝袜",
+      "大腿袜",
+      "thigh highs"
+    ],
+    "knee_socks": [
+      "及膝袜",
+      "knee socks"
+    ],
+    "ankle_socks": [
+      "短袜",
+      "踝袜",
+      "anklet socks"
+    ],
+    "pantyhose": [
+      "连裤袜",
+      "丝袜",
+      "pantyhose stockings"
+    ],
+    "white_pantyhose": [
+      "白丝",
+      "白丝袜",
+      "白色丝袜",
+      "white pantyhose"
+    ],
+    "black_pantyhose": [
+      "黑丝",
+      "黑丝袜",
+      "黑色丝袜",
+      "black pantyhose"
+    ],
+    "grey_pantyhose": [
+      "灰丝",
+      "灰丝袜",
+      "灰色丝袜",
+      "grey pantyhose",
+      "gray pantyhose"
+    ],
+    "leg_ring": [
+      "腿环",
+      "大腿环",
+      "thigh ring",
+      "thigh_strap"
+    ],
+    "garter_straps": [
+      "吊袜带",
+      "袜夹",
+      "garter belt"
+    ],
+    "arm_sleeves": [
+      "袖套",
+      "手臂套",
+      "detached sleeves"
+    ],
+    "gloves": [
+      "手套",
+      "glove"
+    ],
+    "choker": [
+      "项圈",
+      "颈环",
+      "neck choker"
+    ],
+    "hair_ribbon": [
+      "发带",
+      "蝴蝶结发饰",
+      "hair bow"
+    ],
+    "hairpin": [
+      "发夹",
+      "头饰夹",
+      "hair clip"
+    ],
+    "headphones": [
+      "耳机",
+      "headset"
+    ],
+    "glasses": [
+      "眼镜",
+      "spectacles"
+    ],
+    "sunglasses": [
+      "墨镜",
+      "太阳眼镜"
+    ],
+    "eyepatch": [
+      "眼罩",
+      "眼带",
+      "eye_patch"
+    ],
+    "earrings": [
+      "耳饰",
+      "耳环",
+      "earring"
+    ],
+    "necklace": [
+      "项链",
+      "necklace accessory"
+    ],
+    "bracelet": [
+      "手环",
+      "手链",
+      "wristband"
+    ],
+    "ring": [
+      "戒指",
+      "指环"
+    ],
+    "animal_ears": [
+      "兽耳",
+      "猫耳",
+      "兔耳",
+      "animal ears"
+    ],
+    "tail": [
+      "尾巴",
+      "动物尾巴",
+      "animal tail"
+    ],
+    "horns": [
+      "角",
+      "恶魔角",
+      "horn"
+    ],
+    "halo": [
+      "光环",
+      "头顶光环",
+      "angel halo"
+    ],
+    "wings": [
+      "翅膀",
+      "羽翼",
+      "wing"
+    ],
+    "fang": [
+      "虎牙",
+      "小虎牙",
+      "fang tooth"
+    ],
+    "beauty_mark": [
+      "美人痣",
+      "痣",
+      "beauty spot"
+    ],
+    "mole_under_eye": [
+      "泪痣",
+      "眼下痣",
+      "tear mole"
+    ],
+    "freckles": [
+      "雀斑",
+      "斑点脸",
+      "freckle"
+    ],
+    "lipstick": [
+      "口红",
+      "唇彩",
+      "lip gloss"
+    ],
+    "heavy_makeup": [
+      "浓妆",
+      "重妆",
+      "heavy makeup"
+    ],
+    "eyeliner": [
+      "眼线",
+      "eye liner"
+    ],
+    "eyeshadow": [
+      "眼影",
+      "eye shadow"
+    ],
+    "long_eyelashes": [
+      "长睫毛",
+      "浓密睫毛",
+      "long lashes"
+    ],
+    "dark_circles": [
+      "黑眼圈",
+      "眼底阴影",
+      "under eye circles"
+    ],
+    "barefoot": [
+      "裸足",
+      "赤足",
+      "光脚",
+      "bare foot",
+      "bare feet",
+      "bare_feet",
+      "no_shoes",
+      "sandals_removed",
+      "feet",
+      "toes",
+      "soles",
+      "spread_toes",
+      "between_toes",
+      "dirty_feet",
+      "tiptoes",
+      "feet_up",
+      "foot_up"
+    ],
+    "high_heels": [
+      "高跟鞋",
+      "高跟",
+      "heels"
+    ],
+    "boots": [
+      "靴子",
+      "boots shoes"
+    ],
+    "ankle_boots": [
+      "短靴",
+      "踝靴",
+      "ankle boots"
+    ],
+    "thigh_boots": [
+      "过膝靴",
+      "长靴",
+      "thigh boots"
+    ],
+    "sneakers": [
+      "运动鞋",
+      "球鞋",
+      "sneaker"
+    ],
+    "loafers": [
+      "乐福鞋",
+      "loafer"
+    ],
+    "sandals": [
+      "凉鞋",
+      "sandals shoes"
+    ],
+    "mary_janes": [
+      "玛丽珍鞋",
+      "mary jane shoes",
+      "mj shoes"
+    ],
+    "platform_shoes": [
+      "厚底鞋",
+      "松糕鞋",
+      "platform heels"
+    ],
+    "catgirl": [
+      "猫娘",
+      "猫耳娘",
+      "cat girl",
+      "nekomimi"
+    ],
+    "fox_girl": [
+      "狐娘",
+      "狐狸娘",
+      "fox girl"
+    ],
+    "wolf_girl": [
+      "狼娘",
+      "狼耳娘",
+      "wolf girl"
+    ],
+    "bunny_girl": [
+      "兔娘",
+      "兔耳娘",
+      "rabbit girl"
+    ],
+    "dog_girl": [
+      "犬娘",
+      "狗娘",
+      "dog girl"
+    ],
+    "dragon_girl": [
+      "龙娘",
+      "龙人娘",
+      "dragon girl"
+    ],
+    "demon_girl": [
+      "恶魔娘",
+      "魔族娘",
+      "demon girl"
+    ],
+    "angel_girl": [
+      "天使娘",
+      "天使少女",
+      "angel girl"
+    ],
+    "vampire_girl": [
+      "吸血鬼娘",
+      "血族娘",
+      "vampire girl"
+    ],
+    "mermaid": [
+      "人鱼娘",
+      "美人鱼",
+      "mermaid girl"
+    ],
+    "elf_ears": [
+      "精灵耳",
+      "尖精灵耳",
+      "elf ear"
+    ],
+    "pointy_ears": [
+      "尖耳",
+      "尖耳朵",
+      "pointed ears"
+    ],
+    "cyborg": [
+      "改造人",
+      "半机械人",
+      "cyber human"
+    ],
+    "android": [
+      "仿生人",
+      "人造人",
+      "android girl"
+    ],
+    "robot_girl": [
+      "机械娘",
+      "机器人少女",
+      "mecha girl"
+    ],
+    "mechanical_arm": [
+      "机械臂",
+      "义体手臂",
+      "robot arm"
+    ],
+    "mechanical_leg": [
+      "机械腿",
+      "义体腿",
+      "robot leg"
+    ],
+    "prosthetic_limb": [
+      "义肢",
+      "假肢",
+      "prosthesis limb"
+    ],
+    "tattoo": [
+      "纹身",
+      "刺青",
+      "tattoo mark"
+    ],
+    "scar": [
+      "伤疤",
+      "疤痕",
+      "scar mark"
+    ]
+  },
+  "deprecated_tags": {
+    "twin_tails": "twintails",
+    "twintail": "twintails",
+    "short_twin_tails": "short_twintails",
+    "long_twin_tails": "long_twintails",
+    "highponytail": "high_ponytail",
+    "lowponytail": "low_ponytail",
+    "sidebraid": "side_braid",
+    "half_up_hair": "half_updo",
+    "straighthair": "straight_hair",
+    "wavyhair": "wavy_hair",
+    "curlyhair": "curly_hair",
+    "drill_curls": "drill_hair",
+    "mini_skirt": "miniskirt",
+    "knee_high_socks": "knee_socks",
+    "thighhigh_socks": "thighhighs",
+    "thigh_strap": "leg_ring",
+    "blackhair": "black_hair",
+    "longhair": "long_hair",
+    "short-hair": "short_hair",
+    "bluehair": "blue_hair",
+    "light_blue_hair": "blue_hair",
+    "dark_blue_hair": "blue_hair",
+    "light_pink_hair": "pink_hair",
+    "dark_purple_hair": "purple_hair",
+    "silver_blonde_hair": "platinum_blonde_hair",
+    "two_toned_hair": "two_tone_hair",
+    "split_hair_color": "split_color_hair",
+    "ombrehair": "ombre_hair",
+    "highheels": "high_heels",
+    "high-heel": "high_heels",
+    "slim": "teen_girl",
+    "athletic": "oneesan",
+    "curvy": "oneesan",
+    "cat_girl": "catgirl",
+    "foxgirl": "fox_girl",
+    "wolfgirl": "wolf_girl",
+    "bunnygirl_trait": "bunny_girl",
+    "pointed_ears": "pointy_ears",
+    "cybernetic_arm": "mechanical_arm",
+    "cybernetic_leg": "mechanical_leg"
+  },
+  "description_i18n": {
+    "zh-CN": "标签同义词与历史标签映射，用于归一化到 canonical 标签。",
+    "en-US": "Synonym and legacy-tag mappings used to normalize tags into canonical ids.",
+    "ja-JP": "ラベル同義語は、正規ラベルへの正規化のために履歴ラベルにマッピングされます。",
+    "ko-KR": "레이블 동의어는 정규 레이블에 대한 정규화를 위해 과거 레이블에 매핑됩니다."
+  }
+}

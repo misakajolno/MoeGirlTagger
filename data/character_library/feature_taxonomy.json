@@ -1,0 +1,1891 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-02-11",
+  "tag_style": "snake_case",
+  "scope": "anime_image_tagging",
+  "notes": [
+    "该特征库优先覆盖二次元角色标注高频维度，可逐步扩展。",
+    "同一维度内出现互斥标签时，优先保留最具体、最明确标签。",
+    "角色名建议单独作为 character 标签数组管理，不与特征标签混用。"
+  ],
+  "mutually_exclusive_groups": {
+    "hair_length": [
+      "very_short_hair",
+      "short_hair",
+      "medium_hair",
+      "long_hair",
+      "very_long_hair"
+    ],
+    "hair_texture": [
+      "straight_hair",
+      "wavy_hair",
+      "curly_hair"
+    ],
+    "hair_tone": [
+      "light_tone_hair",
+      "dark_tone_hair"
+    ],
+    "chest_size": [
+      "flat_chest",
+      "small_breasts",
+      "medium_breasts",
+      "large_breasts"
+    ],
+    "body_archetype": [
+      "teen_girl",
+      "oneesan",
+      "mature_woman"
+    ],
+    "footwear_type": [
+      "barefoot",
+      "sandals",
+      "sneakers",
+      "loafers",
+      "high_heels",
+      "boots",
+      "ankle_boots",
+      "thigh_boots",
+      "mary_janes",
+      "platform_shoes"
+    ]
+  },
+  "categories": [
+    {
+      "id": "hair_color",
+      "name_zh": "发色",
+      "tags": [
+        {
+          "id": "black_hair",
+          "name_zh": "黑发",
+          "name_en": "Black Hair",
+          "name_i18n": {
+            "zh-CN": "黑发",
+            "en-US": "Black Hair",
+            "ja-JP": "黒髪",
+            "ko-KR": "검은 머리"
+          }
+        },
+        {
+          "id": "gray_hair",
+          "name_zh": "灰发",
+          "name_en": "Gray Hair",
+          "name_i18n": {
+            "zh-CN": "灰发",
+            "en-US": "Gray Hair",
+            "ja-JP": "灰髪",
+            "ko-KR": "회색 머리"
+          }
+        },
+        {
+          "id": "brown_hair",
+          "name_zh": "棕发",
+          "name_en": "Brown Hair",
+          "name_i18n": {
+            "zh-CN": "棕发",
+            "en-US": "Brown Hair",
+            "ja-JP": "茶髪",
+            "ko-KR": "갈색 머리"
+          }
+        },
+        {
+          "id": "blonde_hair",
+          "name_zh": "金发",
+          "name_en": "Blonde Hair",
+          "name_i18n": {
+            "zh-CN": "金发",
+            "en-US": "Blonde Hair",
+            "ja-JP": "金髪",
+            "ko-KR": "금발"
+          }
+        },
+        {
+          "id": "ash_blonde_hair",
+          "name_zh": "亚麻金发",
+          "name_en": "Ash Blonde Hair",
+          "name_i18n": {
+            "zh-CN": "亚麻金发",
+            "en-US": "Ash Blonde Hair",
+            "ja-JP": "アッシュブロンド",
+            "ko-KR": "애쉬 블론드"
+          }
+        },
+        {
+          "id": "platinum_blonde_hair",
+          "name_zh": "白金发",
+          "name_en": "Platinum Blonde Hair",
+          "name_i18n": {
+            "zh-CN": "白金发",
+            "en-US": "Platinum Blonde Hair",
+            "ja-JP": "プラチナブロンド",
+            "ko-KR": "플래티넘 블론드"
+          }
+        },
+        {
+          "id": "white_hair",
+          "name_zh": "白发",
+          "name_en": "White Hair",
+          "name_i18n": {
+            "zh-CN": "白发",
+            "en-US": "White Hair",
+            "ja-JP": "白髪",
+            "ko-KR": "흰 머리"
+          }
+        },
+        {
+          "id": "silver_hair",
+          "name_zh": "银发",
+          "name_en": "Silver Hair",
+          "name_i18n": {
+            "zh-CN": "银发",
+            "en-US": "Silver Hair",
+            "ja-JP": "銀髪",
+            "ko-KR": "은발"
+          }
+        },
+        {
+          "id": "blue_hair",
+          "name_zh": "蓝发",
+          "name_en": "Blue Hair",
+          "name_i18n": {
+            "zh-CN": "蓝发",
+            "en-US": "Blue Hair",
+            "ja-JP": "青髪",
+            "ko-KR": "파란 머리"
+          }
+        },
+        {
+          "id": "aqua_hair",
+          "name_zh": "水蓝发",
+          "name_en": "Aqua Hair",
+          "name_i18n": {
+            "zh-CN": "水蓝发",
+            "en-US": "Aqua Hair",
+            "ja-JP": "水色髪",
+            "ko-KR": "아쿠아 머리"
+          }
+        },
+        {
+          "id": "teal_hair",
+          "name_zh": "蓝绿色发",
+          "name_en": "Teal Hair",
+          "name_i18n": {
+            "zh-CN": "蓝绿色发",
+            "en-US": "Teal Hair",
+            "ja-JP": "青緑髪",
+            "ko-KR": "청록 머리"
+          }
+        },
+        {
+          "id": "pink_hair",
+          "name_zh": "粉发",
+          "name_en": "Pink Hair",
+          "name_i18n": {
+            "zh-CN": "粉发",
+            "en-US": "Pink Hair",
+            "ja-JP": "ピンク髪",
+            "ko-KR": "분홍 머리"
+          }
+        },
+        {
+          "id": "magenta_hair",
+          "name_zh": "品红发",
+          "name_en": "Magenta Hair",
+          "name_i18n": {
+            "zh-CN": "品红发",
+            "en-US": "Magenta Hair",
+            "ja-JP": "マゼンタ髪",
+            "ko-KR": "마젠타 머리"
+          }
+        },
+        {
+          "id": "purple_hair",
+          "name_zh": "紫发",
+          "name_en": "Purple Hair",
+          "name_i18n": {
+            "zh-CN": "紫发",
+            "en-US": "Purple Hair",
+            "ja-JP": "紫髪",
+            "ko-KR": "보라 머리"
+          }
+        },
+        {
+          "id": "green_hair",
+          "name_zh": "绿发",
+          "name_en": "Green Hair",
+          "name_i18n": {
+            "zh-CN": "绿发",
+            "en-US": "Green Hair",
+            "ja-JP": "緑髪",
+            "ko-KR": "초록 머리"
+          }
+        },
+        {
+          "id": "red_hair",
+          "name_zh": "红发",
+          "name_en": "Red Hair",
+          "name_i18n": {
+            "zh-CN": "红发",
+            "en-US": "Red Hair",
+            "ja-JP": "赤髪",
+            "ko-KR": "빨간 머리"
+          }
+        },
+        {
+          "id": "orange_hair",
+          "name_zh": "橙发",
+          "name_en": "Orange Hair",
+          "name_i18n": {
+            "zh-CN": "橙发",
+            "en-US": "Orange Hair",
+            "ja-JP": "オレンジ髪",
+            "ko-KR": "주황 머리"
+          }
+        },
+        {
+          "id": "multicolored_hair",
+          "name_zh": "多色发",
+          "name_en": "Multicolored Hair",
+          "name_i18n": {
+            "zh-CN": "多色发",
+            "en-US": "Multicolored Hair",
+            "ja-JP": "多色髪",
+            "ko-KR": "다색 머리"
+          }
+        }
+      ],
+      "name_en": "Hair Color",
+      "name_i18n": {
+        "zh-CN": "发色",
+        "en-US": "Hair Color",
+        "ja-JP": "髪の色",
+        "ko-KR": "헤어 컬러"
+      }
+    },
+    {
+      "id": "hair_coloring",
+      "name_zh": "染发样式",
+      "tags": [
+        {
+          "id": "two_tone_hair",
+          "name_zh": "双色发",
+          "name_en": "Two Tone Hair",
+          "name_i18n": {
+            "zh-CN": "双色发",
+            "en-US": "Two Tone Hair",
+            "ja-JP": "バイカラーヘア",
+            "ko-KR": "투톤 헤어"
+          }
+        },
+        {
+          "id": "split_color_hair",
+          "name_zh": "阴阳染发",
+          "name_en": "Split Color Hair",
+          "name_i18n": {
+            "zh-CN": "阴阳染发",
+            "en-US": "Split Color Hair",
+            "ja-JP": "陰陽ヘアカラー",
+            "ko-KR": "음양 헤어 염색"
+          }
+        },
+        {
+          "id": "gradient_hair",
+          "name_zh": "渐变发",
+          "name_en": "Gradient Hair",
+          "name_i18n": {
+            "zh-CN": "渐变发",
+            "en-US": "Gradient Hair",
+            "ja-JP": "グラデーションヘア",
+            "ko-KR": "그라데이션 헤어"
+          }
+        },
+        {
+          "id": "ombre_hair",
+          "name_zh": "挑染渐层发",
+          "name_en": "Ombre Hair",
+          "name_i18n": {
+            "zh-CN": "挑染渐层发",
+            "en-US": "Ombre Hair",
+            "ja-JP": "ゆるやかな髪の毛のピッキングと染色",
+            "ko-KR": "점진적인 모발 채취 및 염색"
+          }
+        },
+        {
+          "id": "streaked_hair",
+          "name_zh": "挑染发束",
+          "name_en": "Streaked Hair",
+          "name_i18n": {
+            "zh-CN": "挑染发束",
+            "en-US": "Streaked Hair",
+            "ja-JP": "ピックアンドダイヘアバンドル",
+            "ko-KR": "고르고 염색한 헤어 번들"
+          }
+        },
+        {
+          "id": "inner_color_hair",
+          "name_zh": "内层染发",
+          "name_en": "Inner Color Hair",
+          "name_i18n": {
+            "zh-CN": "内层染发",
+            "en-US": "Inner Color Hair",
+            "ja-JP": "内層ヘアカラー",
+            "ko-KR": "이너 레이어 헤어 염색"
+          }
+        },
+        {
+          "id": "light_tone_hair",
+          "name_zh": "浅色调发",
+          "name_en": "Light Tone Hair",
+          "name_i18n": {
+            "zh-CN": "浅色调发",
+            "en-US": "Light Tone Hair",
+            "ja-JP": "明るいトーンの髪",
+            "ko-KR": "밝은 톤의 헤어"
+          }
+        },
+        {
+          "id": "dark_tone_hair",
+          "name_zh": "深色调发",
+          "name_en": "Dark Tone Hair",
+          "name_i18n": {
+            "zh-CN": "深色调发",
+            "en-US": "Dark Tone Hair",
+            "ja-JP": "黒髪",
+            "ko-KR": "검은 머리"
+          }
+        }
+      ],
+      "name_en": "Hair Coloring Style",
+      "name_i18n": {
+        "zh-CN": "染发样式",
+        "en-US": "Hair Coloring Style",
+        "ja-JP": "ヘアダイスタイル",
+        "ko-KR": "헤어 염색 스타일"
+      }
+    },
+    {
+      "id": "hair_style",
+      "name_zh": "发型",
+      "tags": [
+        {
+          "id": "very_short_hair",
+          "name_zh": "超短发",
+          "name_en": "Very Short Hair",
+          "name_i18n": {
+            "zh-CN": "超短发",
+            "en-US": "Very Short Hair",
+            "ja-JP": "ウルトラショートヘア",
+            "ko-KR": "울트라 숏 헤어"
+          }
+        },
+        {
+          "id": "short_hair",
+          "name_zh": "短发",
+          "name_en": "Short Hair",
+          "name_i18n": {
+            "zh-CN": "短发",
+            "en-US": "Short Hair",
+            "ja-JP": "ショートヘア",
+            "ko-KR": "단발"
+          }
+        },
+        {
+          "id": "medium_hair",
+          "name_zh": "中长发",
+          "name_en": "Medium Hair",
+          "name_i18n": {
+            "zh-CN": "中长发",
+            "en-US": "Medium Hair",
+            "ja-JP": "ミディアムロングヘア",
+            "ko-KR": "미디엄 롱 헤어"
+          }
+        },
+        {
+          "id": "long_hair",
+          "name_zh": "长发",
+          "name_en": "Long Hair",
+          "name_i18n": {
+            "zh-CN": "长发",
+            "en-US": "Long Hair",
+            "ja-JP": "长发",
+            "ko-KR": "긴 머리"
+          }
+        },
+        {
+          "id": "very_long_hair",
+          "name_zh": "超长发",
+          "name_en": "Very Long Hair",
+          "name_i18n": {
+            "zh-CN": "超长发",
+            "en-US": "Very Long Hair",
+            "ja-JP": "エクストラロングヘア",
+            "ko-KR": "엑스트라 롱 헤어"
+          }
+        },
+        {
+          "id": "bob_cut",
+          "name_zh": "波波头",
+          "name_en": "Bob Cut",
+          "name_i18n": {
+            "zh-CN": "波波头",
+            "en-US": "Bob Cut",
+            "ja-JP": "ウェーブヘッド",
+            "ko-KR": "웨이브헤드"
+          }
+        },
+        {
+          "id": "pixie_cut",
+          "name_zh": "精灵短发",
+          "name_en": "Pixie Cut",
+          "name_i18n": {
+            "zh-CN": "精灵短发",
+            "en-US": "Pixie Cut",
+            "ja-JP": "エルフの短髪",
+            "ko-KR": "엘프 짧은 머리"
+          }
+        },
+        {
+          "id": "straight_hair",
+          "name_zh": "直发",
+          "name_en": "Straight Hair",
+          "name_i18n": {
+            "zh-CN": "直发",
+            "en-US": "Straight Hair",
+            "ja-JP": "ストレートヘア",
+            "ko-KR": "스트레이트 헤어"
+          }
+        },
+        {
+          "id": "wavy_hair",
+          "name_zh": "波浪发",
+          "name_en": "Wavy Hair",
+          "name_i18n": {
+            "zh-CN": "波浪发",
+            "en-US": "Wavy Hair",
+            "ja-JP": "波",
+            "ko-KR": "파도"
+          }
+        },
+        {
+          "id": "curly_hair",
+          "name_zh": "卷发",
+          "name_en": "Curly Hair",
+          "name_i18n": {
+            "zh-CN": "卷发",
+            "en-US": "Curly Hair",
+            "ja-JP": "カール",
+            "ko-KR": "곱슬머리"
+          }
+        },
+        {
+          "id": "drill_hair",
+          "name_zh": "钻头卷",
+          "name_en": "Drill Hair",
+          "name_i18n": {
+            "zh-CN": "钻头卷",
+            "en-US": "Drill Hair",
+            "ja-JP": "ドリルヘア",
+            "ko-KR": "드릴 헤어"
+          }
+        },
+        {
+          "id": "twintails",
+          "name_zh": "双马尾",
+          "name_en": "Twintails",
+          "name_i18n": {
+            "zh-CN": "双马尾",
+            "en-US": "Twintails",
+            "ja-JP": "ツインテール",
+            "ko-KR": "트윈테일"
+          }
+        },
+        {
+          "id": "short_twintails",
+          "name_zh": "短双马尾",
+          "name_en": "Short Twintails",
+          "name_i18n": {
+            "zh-CN": "短双马尾",
+            "en-US": "Short Twintails",
+            "ja-JP": "ショートツインテール",
+            "ko-KR": "짧은 트윈테일"
+          }
+        },
+        {
+          "id": "long_twintails",
+          "name_zh": "长双马尾",
+          "name_en": "Long Twintails",
+          "name_i18n": {
+            "zh-CN": "长双马尾",
+            "en-US": "Long Twintails",
+            "ja-JP": "ロングツインテール",
+            "ko-KR": "긴 트윈테일"
+          }
+        },
+        {
+          "id": "ponytail",
+          "name_zh": "单马尾",
+          "name_en": "Ponytail",
+          "name_i18n": {
+            "zh-CN": "单马尾",
+            "en-US": "Ponytail",
+            "ja-JP": "ポニーテール",
+            "ko-KR": "포니테일"
+          }
+        },
+        {
+          "id": "high_ponytail",
+          "name_zh": "高马尾",
+          "name_en": "High Ponytail",
+          "name_i18n": {
+            "zh-CN": "高马尾",
+            "en-US": "High Ponytail",
+            "ja-JP": "ハイポニーテール",
+            "ko-KR": "하이 포니테일"
+          }
+        },
+        {
+          "id": "low_ponytail",
+          "name_zh": "低马尾",
+          "name_en": "Low Ponytail",
+          "name_i18n": {
+            "zh-CN": "低马尾",
+            "en-US": "Low Ponytail",
+            "ja-JP": "低いポニーテール",
+            "ko-KR": "낮은 포니테일"
+          }
+        },
+        {
+          "id": "side_ponytail",
+          "name_zh": "侧马尾",
+          "name_en": "Side Ponytail",
+          "name_i18n": {
+            "zh-CN": "侧马尾",
+            "en-US": "Side Ponytail",
+            "ja-JP": "外側ポニーテール",
+            "ko-KR": "측면 포니테일"
+          }
+        },
+        {
+          "id": "braid",
+          "name_zh": "辫子",
+          "name_en": "Braid",
+          "name_i18n": {
+            "zh-CN": "辫子",
+            "en-US": "Braid",
+            "ja-JP": "三つ編み",
+            "ko-KR": "땋은 머리"
+          }
+        },
+        {
+          "id": "side_braid",
+          "name_zh": "侧辫",
+          "name_en": "Side Braid",
+          "name_i18n": {
+            "zh-CN": "侧辫",
+            "en-US": "Side Braid",
+            "ja-JP": "侧辫",
+            "ko-KR": "측면 브레이드"
+          }
+        },
+        {
+          "id": "bun_hair",
+          "name_zh": "丸子头",
+          "name_en": "Bun Hair",
+          "name_i18n": {
+            "zh-CN": "丸子头",
+            "en-US": "Bun Hair",
+            "ja-JP": "ボールヘッド",
+            "ko-KR": "볼 헤드"
+          }
+        },
+        {
+          "id": "half_updo",
+          "name_zh": "半扎发",
+          "name_en": "Half Updo",
+          "name_i18n": {
+            "zh-CN": "半扎发",
+            "en-US": "Half Updo",
+            "ja-JP": "ハーフタイヘア",
+            "ko-KR": "하프 타이 헤어"
+          }
+        },
+        {
+          "id": "ahoge",
+          "name_zh": "呆毛",
+          "name_en": "Ahoge",
+          "name_i18n": {
+            "zh-CN": "呆毛",
+            "en-US": "Ahoge",
+            "ja-JP": "アホ毛",
+            "ko-KR": "아호게"
+          }
+        }
+      ],
+      "name_en": "Hairstyle",
+      "name_i18n": {
+        "zh-CN": "发型",
+        "en-US": "Hairstyle",
+        "ja-JP": "ショートヘア",
+        "ko-KR": "헤어"
+      }
+    },
+    {
+      "id": "eye_features",
+      "name_zh": "眼部特征",
+      "tags": [
+        {
+          "id": "blue_eyes",
+          "name_zh": "蓝瞳",
+          "name_en": "Blue Eyes",
+          "name_i18n": {
+            "zh-CN": "蓝瞳",
+            "en-US": "Blue Eyes",
+            "ja-JP": "青い瞳",
+            "ko-KR": "파란 눈"
+          }
+        },
+        {
+          "id": "red_eyes",
+          "name_zh": "红瞳",
+          "name_en": "Red Eyes",
+          "name_i18n": {
+            "zh-CN": "红瞳",
+            "en-US": "Red Eyes",
+            "ja-JP": "赤い瞳",
+            "ko-KR": "빨간 눈"
+          }
+        },
+        {
+          "id": "green_eyes",
+          "name_zh": "绿瞳",
+          "name_en": "Green Eyes",
+          "name_i18n": {
+            "zh-CN": "绿瞳",
+            "en-US": "Green Eyes",
+            "ja-JP": "緑の瞳",
+            "ko-KR": "초록 눈"
+          }
+        },
+        {
+          "id": "purple_eyes",
+          "name_zh": "紫瞳",
+          "name_en": "Purple Eyes",
+          "name_i18n": {
+            "zh-CN": "紫瞳",
+            "en-US": "Purple Eyes",
+            "ja-JP": "紫の瞳",
+            "ko-KR": "보라 눈"
+          }
+        },
+        {
+          "id": "golden_eyes",
+          "name_zh": "金瞳",
+          "name_en": "Golden Eyes",
+          "name_i18n": {
+            "zh-CN": "金瞳",
+            "en-US": "Golden Eyes",
+            "ja-JP": "金色の瞳",
+            "ko-KR": "금색 눈"
+          }
+        },
+        {
+          "id": "pink_eyes",
+          "name_zh": "粉瞳",
+          "name_en": "Pink Eyes",
+          "name_i18n": {
+            "zh-CN": "粉瞳",
+            "en-US": "Pink Eyes",
+            "ja-JP": "ピンクの瞳",
+            "ko-KR": "분홍 눈"
+          }
+        },
+        {
+          "id": "brown_eyes",
+          "name_zh": "棕瞳",
+          "name_en": "Brown Eyes",
+          "name_i18n": {
+            "zh-CN": "棕瞳",
+            "en-US": "Brown Eyes",
+            "ja-JP": "茶色の瞳",
+            "ko-KR": "갈색 눈"
+          }
+        },
+        {
+          "id": "black_eyes",
+          "name_zh": "黑瞳",
+          "name_en": "Black Eyes",
+          "name_i18n": {
+            "zh-CN": "黑瞳",
+            "en-US": "Black Eyes",
+            "ja-JP": "黒い瞳",
+            "ko-KR": "검은 눈"
+          }
+        },
+        {
+          "id": "heterochromia",
+          "name_zh": "异色瞳",
+          "name_en": "Heterochromia",
+          "name_i18n": {
+            "zh-CN": "异色瞳",
+            "en-US": "Heterochromia",
+            "ja-JP": "オッドアイ",
+            "ko-KR": "오드아이"
+          }
+        },
+        {
+          "id": "narrow_eyes",
+          "name_zh": "眯眯眼",
+          "name_en": "Narrow Eyes",
+          "name_i18n": {
+            "zh-CN": "眯眯眼",
+            "en-US": "Narrow Eyes",
+            "ja-JP": "細目",
+            "ko-KR": "가는 눈"
+          }
+        }
+      ],
+      "name_en": "Eye Features",
+      "name_i18n": {
+        "zh-CN": "眼部特征",
+        "en-US": "Eye Features",
+        "ja-JP": "目の特徴",
+        "ko-KR": "눈의 특징"
+      }
+    },
+    {
+      "id": "body_features",
+      "name_zh": "体型特征",
+      "tags": [
+        {
+          "id": "teen_girl",
+          "name_zh": "少女",
+          "name_en": "Teen Girl",
+          "name_i18n": {
+            "zh-CN": "少女",
+            "en-US": "Teen Girl",
+            "ja-JP": "乙女",
+            "ko-KR": "소녀"
+          }
+        },
+        {
+          "id": "oneesan",
+          "name_zh": "御姐",
+          "name_en": "Oneesan",
+          "name_i18n": {
+            "zh-CN": "御姐",
+            "en-US": "Oneesan",
+            "ja-JP": "鬼姉妹",
+            "ko-KR": "오니 자매"
+          }
+        },
+        {
+          "id": "mature_woman",
+          "name_zh": "熟女",
+          "name_en": "Mature Woman",
+          "name_i18n": {
+            "zh-CN": "熟女",
+            "en-US": "Mature Woman",
+            "ja-JP": "熟女",
+            "ko-KR": "성숙한 여성"
+          }
+        },
+        {
+          "id": "flat_chest",
+          "name_zh": "贫乳",
+          "name_en": "Flat Chest",
+          "name_i18n": {
+            "zh-CN": "贫乳",
+            "en-US": "Flat Chest",
+            "ja-JP": "赤身のミルク",
+            "ko-KR": "린 밀크"
+          }
+        },
+        {
+          "id": "small_breasts",
+          "name_zh": "小胸",
+          "name_en": "Small Breasts",
+          "name_i18n": {
+            "zh-CN": "小胸",
+            "en-US": "Small Breasts",
+            "ja-JP": "小さな宝箱",
+            "ko-KR": "작은 상자"
+          }
+        },
+        {
+          "id": "medium_breasts",
+          "name_zh": "中胸",
+          "name_en": "Medium Breasts",
+          "name_i18n": {
+            "zh-CN": "中胸",
+            "en-US": "Medium Breasts",
+            "ja-JP": "中胸",
+            "ko-KR": "중간 상자"
+          }
+        },
+        {
+          "id": "large_breasts",
+          "name_zh": "巨乳",
+          "name_en": "Large Breasts",
+          "name_i18n": {
+            "zh-CN": "巨乳",
+            "en-US": "Large Breasts",
+            "ja-JP": "巨乳",
+            "ko-KR": "거유"
+          }
+        },
+        {
+          "id": "long_legs",
+          "name_zh": "长腿",
+          "name_en": "Long Legs",
+          "name_i18n": {
+            "zh-CN": "长腿",
+            "en-US": "Long Legs",
+            "ja-JP": "長い脚",
+            "ko-KR": "긴 다리"
+          }
+        },
+        {
+          "id": "thick_thighs",
+          "name_zh": "肉腿",
+          "name_en": "Thick Thighs",
+          "name_i18n": {
+            "zh-CN": "肉腿",
+            "en-US": "Thick Thighs",
+            "ja-JP": "肉の足",
+            "ko-KR": "고기 다리"
+          }
+        }
+      ],
+      "name_en": "Body Features",
+      "name_i18n": {
+        "zh-CN": "体型特征",
+        "en-US": "Body Features",
+        "ja-JP": "体型特性",
+        "ko-KR": "신체 유형 특성"
+      }
+    },
+    {
+      "id": "outfit_style",
+      "name_zh": "服装风格",
+      "tags": [
+        {
+          "id": "school_uniform",
+          "name_zh": "校服",
+          "name_en": "School Uniform",
+          "name_i18n": {
+            "zh-CN": "校服",
+            "en-US": "School Uniform",
+            "ja-JP": "学生服",
+            "ko-KR": "교복"
+          }
+        },
+        {
+          "id": "maid_uniform",
+          "name_zh": "女仆装",
+          "name_en": "Maid Uniform",
+          "name_i18n": {
+            "zh-CN": "女仆装",
+            "en-US": "Maid Uniform",
+            "ja-JP": "メイド",
+            "ko-KR": "메이드"
+          }
+        },
+        {
+          "id": "idol_costume",
+          "name_zh": "偶像服",
+          "name_en": "Idol Costume",
+          "name_i18n": {
+            "zh-CN": "偶像服",
+            "en-US": "Idol Costume",
+            "ja-JP": "偶像のコスチューム",
+            "ko-KR": "아이돌 코스튬"
+          }
+        },
+        {
+          "id": "battle_suit",
+          "name_zh": "战斗服",
+          "name_en": "Battle Suit",
+          "name_i18n": {
+            "zh-CN": "战斗服",
+            "en-US": "Battle Suit",
+            "ja-JP": "戦闘スーツ",
+            "ko-KR": "배틀 수트"
+          }
+        },
+        {
+          "id": "sci_fi_suit",
+          "name_zh": "科幻服",
+          "name_en": "Sci Fi Suit",
+          "name_i18n": {
+            "zh-CN": "科幻服",
+            "en-US": "Sci Fi Suit",
+            "ja-JP": "サイエンスフィクションの服",
+            "ko-KR": "공상 과학 옷"
+          }
+        },
+        {
+          "id": "casual_wear",
+          "name_zh": "日常服",
+          "name_en": "Casual Wear",
+          "name_i18n": {
+            "zh-CN": "日常服",
+            "en-US": "Casual Wear",
+            "ja-JP": "普段着",
+            "ko-KR": "일상복"
+          }
+        },
+        {
+          "id": "streetwear",
+          "name_zh": "街头风",
+          "name_en": "Streetwear",
+          "name_i18n": {
+            "zh-CN": "街头风",
+            "en-US": "Streetwear",
+            "ja-JP": "ストリートスタイル",
+            "ko-KR": "스트리트 스타일"
+          }
+        },
+        {
+          "id": "cheongsam",
+          "name_zh": "旗袍",
+          "name_en": "Cheongsam",
+          "name_i18n": {
+            "zh-CN": "旗袍",
+            "en-US": "Cheongsam",
+            "ja-JP": "チャイナドレス",
+            "ko-KR": "청삼"
+          }
+        },
+        {
+          "id": "kimono",
+          "name_zh": "和服",
+          "name_en": "Kimono",
+          "name_i18n": {
+            "zh-CN": "和服",
+            "en-US": "Kimono",
+            "ja-JP": "着物",
+            "ko-KR": "기모노"
+          }
+        },
+        {
+          "id": "swimsuit",
+          "name_zh": "泳装",
+          "name_en": "Swimsuit",
+          "name_i18n": {
+            "zh-CN": "泳装",
+            "en-US": "Swimsuit",
+            "ja-JP": "水着",
+            "ko-KR": "수영복"
+          }
+        },
+        {
+          "id": "bunny_suit",
+          "name_zh": "兔女郎装",
+          "name_en": "Bunny Suit",
+          "name_i18n": {
+            "zh-CN": "兔女郎装",
+            "en-US": "Bunny Suit",
+            "ja-JP": "バニーガール・ファッション",
+            "ko-KR": "토끼 소녀 의상"
+          }
+        },
+        {
+          "id": "military_uniform",
+          "name_zh": "军装",
+          "name_en": "Military Uniform",
+          "name_i18n": {
+            "zh-CN": "军装",
+            "en-US": "Military Uniform",
+            "ja-JP": "軍服",
+            "ko-KR": "군복"
+          }
+        }
+      ],
+      "name_en": "Outfit Style",
+      "name_i18n": {
+        "zh-CN": "服装风格",
+        "en-US": "Outfit Style",
+        "ja-JP": "服のスタイル",
+        "ko-KR": "의류 스타일"
+      }
+    },
+    {
+      "id": "clothing_parts",
+      "name_zh": "服装部件",
+      "tags": [
+        {
+          "id": "dress",
+          "name_zh": "连衣裙",
+          "name_en": "Dress",
+          "name_i18n": {
+            "zh-CN": "连衣裙",
+            "en-US": "Dress",
+            "ja-JP": "ワンピース",
+            "ko-KR": "원피스"
+          }
+        },
+        {
+          "id": "skirt",
+          "name_zh": "裙子",
+          "name_en": "Skirt",
+          "name_i18n": {
+            "zh-CN": "裙子",
+            "en-US": "Skirt",
+            "ja-JP": "スカート",
+            "ko-KR": "치마"
+          }
+        },
+        {
+          "id": "pleated_skirt",
+          "name_zh": "百褶裙",
+          "name_en": "Pleated Skirt",
+          "name_i18n": {
+            "zh-CN": "百褶裙",
+            "en-US": "Pleated Skirt",
+            "ja-JP": "プリーツスカート",
+            "ko-KR": "플리츠 스커트"
+          }
+        },
+        {
+          "id": "miniskirt",
+          "name_zh": "超短裙",
+          "name_en": "Miniskirt",
+          "name_i18n": {
+            "zh-CN": "超短裙",
+            "en-US": "Miniskirt",
+            "ja-JP": "スカート",
+            "ko-KR": "스커트"
+          }
+        },
+        {
+          "id": "short_shorts",
+          "name_zh": "热裤",
+          "name_en": "Short Shorts",
+          "name_i18n": {
+            "zh-CN": "热裤",
+            "en-US": "Short Shorts",
+            "ja-JP": "ホットパンツ",
+            "ko-KR": "핫팬츠"
+          }
+        },
+        {
+          "id": "thighhighs",
+          "name_zh": "过膝袜",
+          "name_en": "Thighhighs",
+          "name_i18n": {
+            "zh-CN": "过膝袜",
+            "en-US": "Thighhighs",
+            "ja-JP": "ニーハイソックス",
+            "ko-KR": "니하이 양말"
+          }
+        },
+        {
+          "id": "knee_socks",
+          "name_zh": "及膝袜",
+          "name_en": "Knee Socks",
+          "name_i18n": {
+            "zh-CN": "及膝袜",
+            "en-US": "Knee Socks",
+            "ja-JP": "ニーレングスソックス",
+            "ko-KR": "무릎길이 양말"
+          }
+        },
+        {
+          "id": "ankle_socks",
+          "name_zh": "短袜",
+          "name_en": "Ankle Socks",
+          "name_i18n": {
+            "zh-CN": "短袜",
+            "en-US": "Ankle Socks",
+            "ja-JP": "靴下",
+            "ko-KR": "양말"
+          }
+        },
+        {
+          "id": "pantyhose",
+          "name_zh": "连裤袜",
+          "name_en": "Pantyhose",
+          "name_i18n": {
+            "zh-CN": "连裤袜",
+            "en-US": "Pantyhose",
+            "ja-JP": "パンティストッキング",
+            "ko-KR": "팬티 스타킹"
+          }
+        },
+        {
+          "id": "white_pantyhose",
+          "name_zh": "白丝",
+          "name_en": "White Pantyhose",
+          "name_i18n": {
+            "zh-CN": "白丝",
+            "en-US": "White Pantyhose",
+            "ja-JP": "ホワイトシルク",
+            "ko-KR": "화이트 실크"
+          }
+        },
+        {
+          "id": "black_pantyhose",
+          "name_zh": "黑丝",
+          "name_en": "Black Pantyhose",
+          "name_i18n": {
+            "zh-CN": "黑丝",
+            "en-US": "Black Pantyhose",
+            "ja-JP": "ブラックシルク",
+            "ko-KR": "블랙 실크"
+          }
+        },
+        {
+          "id": "grey_pantyhose",
+          "name_zh": "灰丝",
+          "name_en": "Grey Pantyhose",
+          "name_i18n": {
+            "zh-CN": "灰丝",
+            "en-US": "Grey Pantyhose",
+            "ja-JP": "グレースケール",
+            "ko-KR": "그레이스케일"
+          }
+        },
+        {
+          "id": "leg_ring",
+          "name_zh": "腿环",
+          "name_en": "Leg Ring",
+          "name_i18n": {
+            "zh-CN": "腿环",
+            "en-US": "Leg Ring",
+            "ja-JP": "レッグリング",
+            "ko-KR": "레그 링"
+          }
+        },
+        {
+          "id": "garter_straps",
+          "name_zh": "吊袜带",
+          "name_en": "Garter Straps",
+          "name_i18n": {
+            "zh-CN": "吊袜带",
+            "en-US": "Garter Straps",
+            "ja-JP": "ガーター",
+            "ko-KR": "가터"
+          }
+        },
+        {
+          "id": "arm_sleeves",
+          "name_zh": "袖套",
+          "name_en": "Arm Sleeves",
+          "name_i18n": {
+            "zh-CN": "袖套",
+            "en-US": "Arm Sleeves",
+            "ja-JP": "袖",
+            "ko-KR": "소매"
+          }
+        },
+        {
+          "id": "gloves",
+          "name_zh": "手套",
+          "name_en": "Gloves",
+          "name_i18n": {
+            "zh-CN": "手套",
+            "en-US": "Gloves",
+            "ja-JP": "手袋",
+            "ko-KR": "장갑"
+          }
+        },
+        {
+          "id": "choker",
+          "name_zh": "项圈",
+          "name_en": "Choker",
+          "name_i18n": {
+            "zh-CN": "项圈",
+            "en-US": "Choker",
+            "ja-JP": "襟",
+            "ko-KR": "칼라"
+          }
+        }
+      ],
+      "name_en": "Clothing Parts",
+      "name_i18n": {
+        "zh-CN": "服装部件",
+        "en-US": "Clothing Parts",
+        "ja-JP": "衣類パーツ",
+        "ko-KR": "의류 부품"
+      }
+    },
+    {
+      "id": "accessories",
+      "name_zh": "配饰与附加特征",
+      "tags": [
+        {
+          "id": "hair_ribbon",
+          "name_zh": "发带",
+          "name_en": "Hair Ribbon",
+          "name_i18n": {
+            "zh-CN": "发带",
+            "en-US": "Hair Ribbon",
+            "ja-JP": "ヘアバンド",
+            "ko-KR": "헤어밴드"
+          }
+        },
+        {
+          "id": "hairpin",
+          "name_zh": "发夹",
+          "name_en": "Hairpin",
+          "name_i18n": {
+            "zh-CN": "发夹",
+            "en-US": "Hairpin",
+            "ja-JP": "ヘアクリップ",
+            "ko-KR": "헤어 클립"
+          }
+        },
+        {
+          "id": "headphones",
+          "name_zh": "耳机",
+          "name_en": "Headphones",
+          "name_i18n": {
+            "zh-CN": "耳机",
+            "en-US": "Headphones",
+            "ja-JP": "ヘッドフォン",
+            "ko-KR": "헤드셋"
+          }
+        },
+        {
+          "id": "glasses",
+          "name_zh": "眼镜",
+          "name_en": "Glasses",
+          "name_i18n": {
+            "zh-CN": "眼镜",
+            "en-US": "Glasses",
+            "ja-JP": "眼鏡",
+            "ko-KR": "안경"
+          }
+        },
+        {
+          "id": "sunglasses",
+          "name_zh": "墨镜",
+          "name_en": "Sunglasses",
+          "name_i18n": {
+            "zh-CN": "墨镜",
+            "en-US": "Sunglasses",
+            "ja-JP": "サングラス",
+            "ko-KR": "선글라스"
+          }
+        },
+        {
+          "id": "eyepatch",
+          "name_zh": "眼罩",
+          "name_en": "Eyepatch",
+          "name_i18n": {
+            "zh-CN": "眼罩",
+            "en-US": "Eyepatch",
+            "ja-JP": "アイマスク",
+            "ko-KR": "아이 패치"
+          }
+        },
+        {
+          "id": "earrings",
+          "name_zh": "耳饰",
+          "name_en": "Earrings",
+          "name_i18n": {
+            "zh-CN": "耳饰",
+            "en-US": "Earrings",
+            "ja-JP": "イヤリング",
+            "ko-KR": "귀걸이"
+          }
+        },
+        {
+          "id": "necklace",
+          "name_zh": "项链",
+          "name_en": "Necklace",
+          "name_i18n": {
+            "zh-CN": "项链",
+            "en-US": "Necklace",
+            "ja-JP": "指輪",
+            "ko-KR": "목걸이"
+          }
+        },
+        {
+          "id": "bracelet",
+          "name_zh": "手环",
+          "name_en": "Bracelet",
+          "name_i18n": {
+            "zh-CN": "手环",
+            "en-US": "Bracelet",
+            "ja-JP": "ブレスレット",
+            "ko-KR": "팔찌"
+          }
+        },
+        {
+          "id": "ring",
+          "name_zh": "戒指",
+          "name_en": "Ring",
+          "name_i18n": {
+            "zh-CN": "戒指",
+            "en-US": "Ring",
+            "ja-JP": "指輪",
+            "ko-KR": "반지"
+          }
+        },
+        {
+          "id": "animal_ears",
+          "name_zh": "兽耳",
+          "name_en": "Animal Ears",
+          "name_i18n": {
+            "zh-CN": "兽耳",
+            "en-US": "Animal Ears",
+            "ja-JP": "ビーストの耳",
+            "ko-KR": "짐승의 귀"
+          }
+        },
+        {
+          "id": "tail",
+          "name_zh": "尾巴",
+          "name_en": "Tail",
+          "name_i18n": {
+            "zh-CN": "尾巴",
+            "en-US": "Tail",
+            "ja-JP": "尾",
+            "ko-KR": "꼬리"
+          }
+        },
+        {
+          "id": "horns",
+          "name_zh": "角",
+          "name_en": "Horns",
+          "name_i18n": {
+            "zh-CN": "角",
+            "en-US": "Horns",
+            "ja-JP": "角度 [かくど]",
+            "ko-KR": "각도"
+          }
+        },
+        {
+          "id": "halo",
+          "name_zh": "光环",
+          "name_en": "Halo",
+          "name_i18n": {
+            "zh-CN": "光环",
+            "en-US": "Halo",
+            "ja-JP": "オーラ",
+            "ko-KR": "오라"
+          }
+        },
+        {
+          "id": "wings",
+          "name_zh": "翅膀",
+          "name_en": "Wings",
+          "name_i18n": {
+            "zh-CN": "翅膀",
+            "en-US": "Wings",
+            "ja-JP": "翼",
+            "ko-KR": "날개"
+          }
+        }
+      ],
+      "name_en": "Accessories and Extra Traits",
+      "name_i18n": {
+        "zh-CN": "配饰与附加特征",
+        "en-US": "Accessories and Extra Traits",
+        "ja-JP": "アクセサリーと追加機能",
+        "ko-KR": "액세서리 및 추가 기능"
+      }
+    },
+    {
+      "id": "face_details",
+      "name_zh": "面部细节",
+      "tags": [
+        {
+          "id": "fang",
+          "name_zh": "虎牙",
+          "name_en": "Fang",
+          "name_i18n": {
+            "zh-CN": "虎牙",
+            "en-US": "Fang",
+            "ja-JP": "虎の歯",
+            "ko-KR": "호랑이 이빨"
+          }
+        },
+        {
+          "id": "beauty_mark",
+          "name_zh": "美人痣",
+          "name_en": "Beauty Mark",
+          "name_i18n": {
+            "zh-CN": "美人痣",
+            "en-US": "Beauty Mark",
+            "ja-JP": "ビューティーモル",
+            "ko-KR": "미녀 두더지"
+          }
+        },
+        {
+          "id": "mole_under_eye",
+          "name_zh": "泪痣",
+          "name_en": "Mole Under Eye",
+          "name_i18n": {
+            "zh-CN": "泪痣",
+            "en-US": "Mole Under Eye",
+            "ja-JP": "ﾙｲﾎﾞﾊﾝ",
+            "ko-KR": "눈물모반"
+          }
+        },
+        {
+          "id": "freckles",
+          "name_zh": "雀斑",
+          "name_en": "Freckles",
+          "name_i18n": {
+            "zh-CN": "雀斑",
+            "en-US": "Freckles",
+            "ja-JP": "そばかす",
+            "ko-KR": "주근깨"
+          }
+        },
+        {
+          "id": "lipstick",
+          "name_zh": "口红",
+          "name_en": "Lipstick",
+          "name_i18n": {
+            "zh-CN": "口红",
+            "en-US": "Lipstick",
+            "ja-JP": "口紅",
+            "ko-KR": "립스틱"
+          }
+        },
+        {
+          "id": "heavy_makeup",
+          "name_zh": "浓妆",
+          "name_en": "Heavy Makeup",
+          "name_i18n": {
+            "zh-CN": "浓妆",
+            "en-US": "Heavy Makeup",
+            "ja-JP": "ヘビーメイク",
+            "ko-KR": "헤비 메이크업"
+          }
+        },
+        {
+          "id": "eyeliner",
+          "name_zh": "眼线",
+          "name_en": "Eyeliner",
+          "name_i18n": {
+            "zh-CN": "眼线",
+            "en-US": "Eyeliner",
+            "ja-JP": "アイライナー",
+            "ko-KR": "아이라인"
+          }
+        },
+        {
+          "id": "eyeshadow",
+          "name_zh": "眼影",
+          "name_en": "Eyeshadow",
+          "name_i18n": {
+            "zh-CN": "眼影",
+            "en-US": "Eyeshadow",
+            "ja-JP": "アイシャドウ",
+            "ko-KR": "아이섀도우"
+          }
+        },
+        {
+          "id": "long_eyelashes",
+          "name_zh": "长睫毛",
+          "name_en": "Long Eyelashes",
+          "name_i18n": {
+            "zh-CN": "长睫毛",
+            "en-US": "Long Eyelashes",
+            "ja-JP": "長いまつげ",
+            "ko-KR": "긴 속눈썹"
+          }
+        },
+        {
+          "id": "dark_circles",
+          "name_zh": "黑眼圈",
+          "name_en": "Dark Circles",
+          "name_i18n": {
+            "zh-CN": "黑眼圈",
+            "en-US": "Dark Circles",
+            "ja-JP": "ダークサークル",
+            "ko-KR": "다크서클"
+          }
+        }
+      ],
+      "name_en": "Face Details",
+      "name_i18n": {
+        "zh-CN": "面部细节",
+        "en-US": "Face Details",
+        "ja-JP": "顔のディテール",
+        "ko-KR": "얼굴 세부 정보"
+      }
+    },
+    {
+      "id": "footwear",
+      "name_zh": "鞋履",
+      "tags": [
+        {
+          "id": "barefoot",
+          "name_zh": "裸足",
+          "name_en": "Barefoot",
+          "name_i18n": {
+            "zh-CN": "裸足",
+            "en-US": "Barefoot",
+            "ja-JP": "裸足",
+            "ko-KR": "맨발"
+          }
+        },
+        {
+          "id": "high_heels",
+          "name_zh": "高跟鞋",
+          "name_en": "High Heels",
+          "name_i18n": {
+            "zh-CN": "高跟鞋",
+            "en-US": "High Heels",
+            "ja-JP": "ハイヒール",
+            "ko-KR": "하이힐"
+          }
+        },
+        {
+          "id": "boots",
+          "name_zh": "靴子",
+          "name_en": "Boots",
+          "name_i18n": {
+            "zh-CN": "靴子",
+            "en-US": "Boots",
+            "ja-JP": "ブーツ",
+            "ko-KR": "부츠"
+          }
+        },
+        {
+          "id": "ankle_boots",
+          "name_zh": "短靴",
+          "name_en": "Ankle Boots",
+          "name_i18n": {
+            "zh-CN": "短靴",
+            "en-US": "Ankle Boots",
+            "ja-JP": "アンクルブーツ",
+            "ko-KR": "단화"
+          }
+        },
+        {
+          "id": "thigh_boots",
+          "name_zh": "过膝靴",
+          "name_en": "Thigh Boots",
+          "name_i18n": {
+            "zh-CN": "过膝靴",
+            "en-US": "Thigh Boots",
+            "ja-JP": "オーバーニーブーツ",
+            "ko-KR": "오버 더 니 부츠"
+          }
+        },
+        {
+          "id": "sneakers",
+          "name_zh": "运动鞋",
+          "name_en": "Sneakers",
+          "name_i18n": {
+            "zh-CN": "运动鞋",
+            "en-US": "Sneakers",
+            "ja-JP": "スニーカー",
+            "ko-KR": "스니커즈"
+          }
+        },
+        {
+          "id": "loafers",
+          "name_zh": "乐福鞋",
+          "name_en": "Loafers",
+          "name_i18n": {
+            "zh-CN": "乐福鞋",
+            "en-US": "Loafers",
+            "ja-JP": "ローファー",
+            "ko-KR": "로퍼"
+          }
+        },
+        {
+          "id": "sandals",
+          "name_zh": "凉鞋",
+          "name_en": "Sandals",
+          "name_i18n": {
+            "zh-CN": "凉鞋",
+            "en-US": "Sandals",
+            "ja-JP": "サンダル",
+            "ko-KR": "샌들"
+          }
+        },
+        {
+          "id": "mary_janes",
+          "name_zh": "玛丽珍鞋",
+          "name_en": "Mary Janes",
+          "name_i18n": {
+            "zh-CN": "玛丽珍鞋",
+            "en-US": "Mary Janes",
+            "ja-JP": "メリージェーン",
+            "ko-KR": "메리제인 슈즈"
+          }
+        },
+        {
+          "id": "platform_shoes",
+          "name_zh": "厚底鞋",
+          "name_en": "Platform Shoes",
+          "name_i18n": {
+            "zh-CN": "厚底鞋",
+            "en-US": "Platform Shoes",
+            "ja-JP": "プラットフォームシューズ",
+            "ko-KR": "플랫폼 슈즈"
+          }
+        }
+      ],
+      "name_en": "Footwear",
+      "name_i18n": {
+        "zh-CN": "鞋履",
+        "en-US": "Footwear",
+        "ja-JP": "鞋履",
+        "ko-KR": "신발"
+      }
+    },
+    {
+      "id": "species_traits",
+      "name_zh": "种族与设定特征",
+      "tags": [
+        {
+          "id": "catgirl",
+          "name_zh": "猫娘",
+          "name_en": "Catgirl",
+          "name_i18n": {
+            "zh-CN": "猫娘",
+            "en-US": "Catgirl",
+            "ja-JP": "キャットウーマン",
+            "ko-KR": "캣우먼"
+          }
+        },
+        {
+          "id": "fox_girl",
+          "name_zh": "狐娘",
+          "name_en": "Fox Girl",
+          "name_i18n": {
+            "zh-CN": "狐娘",
+            "en-US": "Fox Girl",
+            "ja-JP": "キツネの婦人",
+            "ko-KR": "여우 아가씨"
+          }
+        },
+        {
+          "id": "wolf_girl",
+          "name_zh": "狼娘",
+          "name_en": "Wolf Girl",
+          "name_i18n": {
+            "zh-CN": "狼娘",
+            "en-US": "Wolf Girl",
+            "ja-JP": "ウルフガール",
+            "ko-KR": "울프걸"
+          }
+        },
+        {
+          "id": "bunny_girl",
+          "name_zh": "兔娘",
+          "name_en": "Bunny Girl",
+          "name_i18n": {
+            "zh-CN": "兔娘",
+            "en-US": "Bunny Girl",
+            "ja-JP": "ウサギ",
+            "ko-KR": "토끼"
+          }
+        },
+        {
+          "id": "dog_girl",
+          "name_zh": "犬娘",
+          "name_en": "Dog Girl",
+          "name_i18n": {
+            "zh-CN": "犬娘",
+            "en-US": "Dog Girl",
+            "ja-JP": "ドッグガール",
+            "ko-KR": "개 소녀"
+          }
+        },
+        {
+          "id": "dragon_girl",
+          "name_zh": "龙娘",
+          "name_en": "Dragon Girl",
+          "name_i18n": {
+            "zh-CN": "龙娘",
+            "en-US": "Dragon Girl",
+            "ja-JP": "ドラゴンレディ",
+            "ko-KR": "드래곤 레이디"
+          }
+        },
+        {
+          "id": "demon_girl",
+          "name_zh": "恶魔娘",
+          "name_en": "Demon Girl",
+          "name_i18n": {
+            "zh-CN": "恶魔娘",
+            "en-US": "Demon Girl",
+            "ja-JP": "デモネス",
+            "ko-KR": "악마성"
+          }
+        },
+        {
+          "id": "angel_girl",
+          "name_zh": "天使娘",
+          "name_en": "Angel Girl",
+          "name_i18n": {
+            "zh-CN": "天使娘",
+            "en-US": "Angel Girl",
+            "ja-JP": "天使の娘",
+            "ko-KR": "천사의 딸"
+          }
+        },
+        {
+          "id": "vampire_girl",
+          "name_zh": "吸血鬼娘",
+          "name_en": "Vampire Girl",
+          "name_i18n": {
+            "zh-CN": "吸血鬼娘",
+            "en-US": "Vampire Girl",
+            "ja-JP": "吸血鬼の娘",
+            "ko-KR": "뱀파이어 딸"
+          }
+        },
+        {
+          "id": "mermaid",
+          "name_zh": "人鱼娘",
+          "name_en": "Mermaid",
+          "name_i18n": {
+            "zh-CN": "人鱼娘",
+            "en-US": "Mermaid",
+            "ja-JP": "人鱼娘",
+            "ko-KR": "인어공주 숙녀"
+          }
+        },
+        {
+          "id": "elf_ears",
+          "name_zh": "精灵耳",
+          "name_en": "Elf Ears",
+          "name_i18n": {
+            "zh-CN": "精灵耳",
+            "en-US": "Elf Ears",
+            "ja-JP": "精灵耳",
+            "ko-KR": "요정 귀"
+          }
+        },
+        {
+          "id": "pointy_ears",
+          "name_zh": "尖耳",
+          "name_en": "Pointy Ears",
+          "name_i18n": {
+            "zh-CN": "尖耳",
+            "en-US": "Pointy Ears",
+            "ja-JP": "先の尖った耳",
+            "ko-KR": "뾰족한 귀"
+          }
+        },
+        {
+          "id": "cyborg",
+          "name_zh": "改造人",
+          "name_en": "Cyborg",
+          "name_i18n": {
+            "zh-CN": "改造人",
+            "en-US": "Cyborg",
+            "ja-JP": "モディファイア",
+            "ko-KR": "옵션"
+          }
+        },
+        {
+          "id": "android",
+          "name_zh": "仿生人",
+          "name_en": "Android",
+          "name_i18n": {
+            "zh-CN": "仿生人",
+            "en-US": "Android",
+            "ja-JP": "バイオニック・マン",
+            "ko-KR": "바이오닉 맨"
+          }
+        },
+        {
+          "id": "robot_girl",
+          "name_zh": "机械娘",
+          "name_en": "Robot Girl",
+          "name_i18n": {
+            "zh-CN": "机械娘",
+            "en-US": "Robot Girl",
+            "ja-JP": "ロボット娘",
+            "ko-KR": "로봇 소녀"
+          }
+        },
+        {
+          "id": "mechanical_arm",
+          "name_zh": "机械臂",
+          "name_en": "Mechanical Arm",
+          "name_i18n": {
+            "zh-CN": "机械臂",
+            "en-US": "Mechanical Arm",
+            "ja-JP": "机械臂",
+            "ko-KR": "로봇 팔"
+          }
+        },
+        {
+          "id": "mechanical_leg",
+          "name_zh": "机械腿",
+          "name_en": "Mechanical Leg",
+          "name_i18n": {
+            "zh-CN": "机械腿",
+            "en-US": "Mechanical Leg",
+            "ja-JP": "メカニカルレッグ",
+            "ko-KR": "기계식 다리"
+          }
+        },
+        {
+          "id": "prosthetic_limb",
+          "name_zh": "义肢",
+          "name_en": "Prosthetic Limb",
+          "name_i18n": {
+            "zh-CN": "义肢",
+            "en-US": "Prosthetic Limb",
+            "ja-JP": "プロテーゼ",
+            "ko-KR": "보철"
+          }
+        },
+        {
+          "id": "tattoo",
+          "name_zh": "纹身",
+          "name_en": "Tattoo",
+          "name_i18n": {
+            "zh-CN": "纹身",
+            "en-US": "Tattoo",
+            "ja-JP": "タトゥー",
+            "ko-KR": "문신"
+          }
+        },
+        {
+          "id": "scar",
+          "name_zh": "伤疤",
+          "name_en": "Scar",
+          "name_i18n": {
+            "zh-CN": "伤疤",
+            "en-US": "Scar",
+            "ja-JP": "傷跡",
+            "ko-KR": "흉터"
+          }
+        }
+      ],
+      "name_en": "Species and Lore Traits",
+      "name_i18n": {
+        "zh-CN": "种族与设定特征",
+        "en-US": "Species and Lore Traits",
+        "ja-JP": "民族性と設定特性",
+        "ko-KR": "민족 및 설정 특성"
+      }
+    }
+  ],
+  "notes_i18n": {
+    "zh-CN": [
+      "该特征库优先覆盖二次元角色标注高频维度，可逐步扩展。",
+      "同一维度内出现互斥标签时，优先保留最具体、最明确标签。",
+      "角色名建议单独作为 character 标签数组管理，不与特征标签混用。"
+    ],
+    "en-US": [
+      "This feature set prioritizes common anime character tagging dimensions and can be extended incrementally.",
+      "When mutually exclusive tags appear in the same dimension, keep the most specific and explicit tag first.",
+      "Character names should be maintained in a separate character array and should not be mixed with feature tags."
+    ],
+    "ja-JP": [
+      "特徴ライブラリは、徐々に拡張することができる２次元文字注釈の高周波次元を優先的にカバーする。",
+      "互いに排他的なラベルが同じ寸法内に表示される場合、最も具体的で明確なラベルが優先的に保持されます。",
+      "ロール名は、キャラクタータグの配列として個別に管理することをお勧めします。機能タグと混在させないでください。"
+    ],
+    "ko-KR": [
+      "특징 라이브러리는 점진적으로 확장될 수 있는 2차원 문자 주석의 고주파 차원을 우선적으로 다룹니다.",
+      "상호 배타적인 라벨이 동일한 치수 내에 나타나는 경우, 가장 구체적이고 명확한 라벨이 우선적으로 유지됩니다.",
+      "역할 이름은 기능 태그와 혼합하지 말고 문자 태그 배열로 별도로 관리하는 것이 좋습니다."
+    ]
+  }
+}

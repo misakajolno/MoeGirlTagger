@@ -1,0 +1,127 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-02-10",
+  "scope": "appearance_features_only",
+  "purpose": "用于自动打标时的优先级排序与冲突消解",
+  "tag_priority_order": [
+    "hair_color",
+    "hair_coloring",
+    "hair_style",
+    "eye_features",
+    "face_details",
+    "body_features",
+    "clothing_parts",
+    "footwear",
+    "outfit_style",
+    "accessories",
+    "species_traits"
+  ],
+  "display_tag_priority": [
+    "large_breasts",
+    "medium_breasts",
+    "small_breasts",
+    "flat_chest",
+    "teen_girl",
+    "oneesan",
+    "mature_woman"
+  ],
+  "source_priority_order": [
+    "manual_review",
+    "character_template",
+    "vision_model",
+    "ocr_text",
+    "filename_hint"
+  ],
+  "confidence_thresholds": {
+    "accept": 0.65,
+    "review": 0.45,
+    "reject": 0.45
+  },
+  "conflict_resolution": {
+    "within_mutually_exclusive_group": "同互斥组出现多个标签时，按 feature_tags 顺序保留第一个，其余自动剔除",
+    "cross_category_conflict": "不同类别允许共存，不主动删除",
+    "blocked_tags": [
+      "hair_over_one_eye",
+      "hime_cut",
+      "braid_ponytail",
+      "androgynous",
+      "bare_shoulders",
+      "bare_back",
+      "armpits",
+      "exposed_midriff",
+      "topless",
+      "panty_pull"
+    ],
+    "max_tags_per_category": {
+      "hair_color": 2,
+      "hair_coloring": 2,
+      "hair_style": 4,
+      "eye_features": 2,
+      "face_details": 4,
+      "body_features": 3,
+      "clothing_parts": 6,
+      "footwear": 3,
+      "outfit_style": 3,
+      "accessories": 6,
+      "species_traits": 3
+    },
+    "within_mutually_exclusive_group_i18n": {
+      "zh-CN": "同互斥组出现多个标签时，按 feature_tags 顺序保留第一个，其余自动剔除",
+      "en-US": "When multiple tags appear in one mutually exclusive group, keep the first tag according to feature tag order and remove the rest automatically.",
+      "ja-JP": "When multiple tags appear in one mutually exclusive group, keep the first tag according to feature tag order and remove the rest automatically.",
+      "ko-KR": "When multiple tags appear in one mutually exclusive group, keep the first tag according to feature tag order and remove the rest automatically."
+    },
+    "cross_category_conflict_i18n": {
+      "zh-CN": "不同类别允许共存，不主动删除",
+      "en-US": "Allow tags across different categories to coexist and do not remove them proactively.",
+      "ja-JP": "Allow tags across different categories to coexist and do not remove them proactively.",
+      "ko-KR": "Allow tags across different categories to coexist and do not remove them proactively."
+    }
+  },
+  "post_rules": [
+    {
+      "id": "prefer_specific_hair_length",
+      "description": "头发长度标签冲突时优先保留具体长度，不保留泛化长度。",
+      "description_i18n": {
+        "zh-CN": "头发长度标签冲突时优先保留具体长度，不保留泛化长度。",
+        "en-US": "When hair-length tags conflict, keep the more specific length and remove generic length tags.",
+        "ja-JP": "髪の長さのラベルが競合する場合は、一般的な長さではなく、特定の長さが好ましい。",
+        "ko-KR": "모발 길이 라벨이 충돌하는 경우, 일반화된 길이가 아닌 특정 길이가 선호됩니다."
+      }
+    },
+    {
+      "id": "chest_size_single_choice",
+      "description": "胸围标签仅保留一个，防止平胸/巨乳并存。",
+      "description_i18n": {
+        "zh-CN": "胸围标签仅保留一个，防止平胸/巨乳并存。",
+        "en-US": "Keep only one chest-size tag to avoid contradictory combinations.",
+        "ja-JP": "平らな/大きな乳房の共存を防ぐために、1つのバストラベルのみを保管してください。",
+        "ko-KR": "납작/큰 가슴이 공존하는 것을 방지하기 위해 가슴 라벨을 하나만 유지하십시오."
+      }
+    },
+    {
+      "id": "remove_low_confidence_tail",
+      "description": "当某类别标签数超限时，按置信度升序删除。",
+      "description_i18n": {
+        "zh-CN": "当某类别标签数超限时，按置信度升序删除。",
+        "en-US": "When one category exceeds the tag limit, remove tags in ascending confidence order.",
+        "ja-JP": "カテゴリ内のラベルの数が制限を超えると、信頼度の昇順で削除されます。",
+        "ko-KR": "카테고리의 레이블 수가 한도를 초과하면 신뢰도 오름차순으로 삭제됩니다."
+      }
+    }
+  ],
+  "audit_fields": [
+    "image_id",
+    "raw_tags",
+    "normalized_tags",
+    "dropped_tags",
+    "conflict_notes",
+    "review_required"
+  ],
+  "purpose_i18n": {
+    "zh-CN": "用于自动打标时的优先级排序与冲突消解",
+    "en-US": "Priority sorting and conflict resolution rules used by automatic tagging.",
+    "ja-JP": "自動マーキング中の優先順位付けと競合解決に使用",
+    "ko-KR": "자동 마킹 중 우선순위 지정 및 충돌 해결에 사용됨"
+  }
+}

@@ -1,0 +1,53 @@
+# =========================
+# System / Editor
+# =========================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# =========================
+# Local generated data
+# =========================
+data/annotation_queue/*.jsonl
+data/annotation_queue/*.bak.jsonl
+data/character_library/custom/
+
+# =========================
+# Local image assets (do not publish)
+# =========================
+image/
+image_high_precision/
+
+# =========================
+# Downloaded tools / models
+# =========================
+tools/wd14/
+tools/exiftool/
+tools/clip-vit-b32/
+
+# =========================
+# Temp / logs
+# =========================
+*.log
+*.tmp
+*.temp
+.helloagents/archive/*
+!.helloagents/archive/_index.md
+.helloagents/sessions/*
+!.helloagents/sessions/.gitkeep
+helloagents_backup_*/
+tests/

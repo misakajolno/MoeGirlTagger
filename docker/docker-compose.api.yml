@@ -1,0 +1,16 @@
+services:
+  moegirl-tagger-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: moegirl_tagger_api
+    ports:
+      - "8000:8000"
+    working_dir: /app
+    volumes:
+      - ../data:/app/data
+      - ../tools:/app/tools
+      - ../image:/app/image
+      - ../image_high_precision:/app/image_high_precision
+    restart: unless-stopped
+
