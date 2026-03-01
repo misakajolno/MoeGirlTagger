@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 import requests
 
 from core.moegirl_tagger.character_search_provider import CharacterSearchProvider, SearchCandidate
-from core.moegirl_tagger.custom_character_store import CustomCharacterStore
+from core.moegirl_tagger.custom_character_store import CustomCharacterStore, canonical_source_key
 from core.moegirl_tagger.reference_identity_filter import ReferenceIdentityFilter
 
 
@@ -200,6 +200,10 @@ class CharacterManagerService:
         left_text = str(left_source).strip()
         right_text = str(right_source).strip()
         if not left_text or not right_text:
+            return True
+        left_canonical = canonical_source_key(left_text)
+        right_canonical = canonical_source_key(right_text)
+        if left_canonical and right_canonical and left_canonical == right_canonical:
             return True
         left_keys = self._build_source_keys(left_text)
         right_keys = self._build_source_keys(right_text)
@@ -679,18 +683,31 @@ class CharacterManagerService:
                         refreshed = self.store.get_character(character_id)
                         if isinstance(refreshed, dict):
                             record = refreshed
+                    existing_references = [
+                        value
+                        for value in record.get("reference_images", [])
+                        if str(value).strip()
+                    ]
+                    current_reference_count = len(existing_references)
+                    remaining_limit = max(0, safe_limit - current_reference_count)
+                    if remaining_limit <= 0:
+                        summary["skipped_characters"] += 1
+                        summary["processed_characters"] = index
+                        if progress_callback is not None:
+                            progress_callback(dict(summary, current_name=name))
+                        continue
                     bulk_collector = getattr(self.provider, "collect_reference_image_urls_for_bulk", None)
                     if callable(bulk_collector):
                         urls = bulk_collector(
                             display_name=name,
                             source_title=source_title,
-                            limit=safe_limit,
+                            limit=remaining_limit,
                         )
                     else:
                         urls = self.provider.collect_reference_image_urls(
                             display_name=name,
                             source_title=source_title,
-                            limit=safe_limit,
+                            limit=remaining_limit,
                             provider=provider,
                             provider_entity_id=provider_entity_id,
                         )
@@ -698,7 +715,7 @@ class CharacterManagerService:
                         character_id,
                         urls,
                         identity_record=record,
-                        identity_limit=safe_limit,
+                        identity_limit=remaining_limit,
                     )
                     if added > 0:
                         summary["updated_characters"] += 1

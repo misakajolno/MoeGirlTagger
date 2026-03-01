@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QThread
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -43,6 +43,7 @@ from apps.pyside.moegirl_tagger_gui_common import (
 )
 from apps.pyside.moegirl_tagger_gui_list import ImageListDelegate, ImageListView
 from apps.pyside.moegirl_tagger_gui_styles import build_window_qss
+from apps.pyside.moegirl_tagger_gui_workers import CorrelationProfileRebuildWorker
 from apps.pyside.moegirl_tagger_gui_widgets import DragBar, PreviewCanvas
 
 
@@ -121,6 +122,8 @@ class MoeGirlTaggerWindowUiMixin:
         self.list_widget.selectionModel().currentChanged.connect(self._on_current_item_changed)
         self.list_widget.deleteRequested.connect(self._delete_image_by_key)
         self.character_search_button.clicked.connect(self._search_characters_online)
+        self.character_library_search_button.clicked.connect(self._start_character_library_search)
+        self.character_library_search_input.returnPressed.connect(self._start_character_library_search)
         self.character_bulk_button.clicked.connect(self._start_bulk_character_build)
         self.character_import_button.clicked.connect(self._import_selected_character)
         self.character_delete_button.clicked.connect(self._request_delete_selected_character)
@@ -248,8 +251,14 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_search_input.setObjectName("CharacterSearchInput")
         self.character_search_button = QPushButton()
         self.character_search_button.setObjectName("PrimaryButton")
+        self.character_library_search_input = QLineEdit()
+        self.character_library_search_input.setObjectName("CharacterSearchInput")
+        self.character_library_search_button = QPushButton()
+        self.character_library_search_button.setObjectName("SecondaryButton")
         search_row.addWidget(self.character_search_input, 1)
         search_row.addWidget(self.character_search_button, 0)
+        search_row.addWidget(self.character_library_search_input, 1)
+        search_row.addWidget(self.character_library_search_button, 0)
         card_layout.addLayout(search_row)
 
         bulk_row = QHBoxLayout()
@@ -289,10 +298,10 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_refresh_button = QPushButton()
         self.character_refresh_button.setObjectName("SecondaryButton")
         actions_row.addWidget(self.character_import_button)
-        actions_row.addWidget(self.character_add_refs_button)
-        actions_row.addWidget(self.character_delete_button)
         actions_row.addWidget(self.character_refresh_button)
         actions_row.addStretch(1)
+        actions_row.addWidget(self.character_add_refs_button)
+        actions_row.addWidget(self.character_delete_button)
         card_layout.addLayout(actions_row)
 
         list_splitter = QSplitter(Qt.Horizontal)
@@ -453,6 +462,16 @@ class MoeGirlTaggerWindowUiMixin:
         action_layout.addStretch(1)
         layout.addLayout(action_layout)
 
+        self.rebuild_correlation_profiles_button = QPushButton()
+        self.rebuild_correlation_profiles_button.setObjectName("SecondaryButton")
+        self.rebuild_correlation_profiles_button.clicked.connect(self._start_rebuild_correlation_profiles)
+        layout.addWidget(self.rebuild_correlation_profiles_button, 0, Qt.AlignLeft)
+
+        self.rebuild_correlation_profiles_hint_label = QLabel()
+        self.rebuild_correlation_profiles_hint_label.setObjectName("SettingsHint")
+        self.rebuild_correlation_profiles_hint_label.setWordWrap(True)
+        layout.addWidget(self.rebuild_correlation_profiles_hint_label)
+
         self.toast_label = QLabel()
         self.toast_label.setObjectName("ToastLabel")
         self.toast_label.hide()
@@ -517,6 +536,67 @@ class MoeGirlTaggerWindowUiMixin:
         self._show_toast(self._tr("settings_saved_toast"))
         self._set_status(self._tr("settings_saved_status"))
 
+    def _is_correlation_profile_rebuild_running(self) -> bool:
+        thread = getattr(self, "correlation_rebuild_thread", None)
+        return thread is not None and thread.isRunning()
+
+    def _start_rebuild_correlation_profiles(self) -> None:
+        if self._is_correlation_profile_rebuild_running():
+            self._set_status(self._tr("status_rebuild_correlation_profiles_running"))
+            return
+        if self.worker_thread is not None or self.clear_thread is not None:
+            self._set_status(self._tr("status_busy_modify_list"), is_error=True)
+            return
+        if hasattr(self, "_is_character_bulk_build_running") and self._is_character_bulk_build_running():
+            self._set_status(self._tr("status_character_bulk_running"))
+            return
+        if hasattr(self, "_is_character_delete_running") and self._is_character_delete_running():
+            self._set_status(self._tr("status_character_delete_busy"))
+            return
+
+        self.rebuild_correlation_profiles_button.setEnabled(False)
+        self._set_status(self._tr("status_rebuild_correlation_profiles_start"))
+
+        self.correlation_rebuild_thread = QThread(self)
+        self.correlation_rebuild_worker = CorrelationProfileRebuildWorker(
+            repo_root=self.repo_root,
+            preferred_language=self.current_language,
+        )
+        self.correlation_rebuild_worker.moveToThread(self.correlation_rebuild_thread)
+
+        self.correlation_rebuild_thread.started.connect(self.correlation_rebuild_worker.run)
+        self.correlation_rebuild_worker.finished.connect(self._on_rebuild_correlation_profiles_finished)
+        self.correlation_rebuild_worker.finished.connect(self.correlation_rebuild_thread.quit)
+        self.correlation_rebuild_worker.finished.connect(self.correlation_rebuild_worker.deleteLater)
+        self.correlation_rebuild_thread.finished.connect(self.correlation_rebuild_thread.deleteLater)
+        self.correlation_rebuild_thread.finished.connect(self._on_rebuild_correlation_profiles_thread_finished)
+        self.correlation_rebuild_thread.start()
+
+    def _on_rebuild_correlation_profiles_finished(self, ok: bool, message: str, payload: object) -> None:
+        if not ok:
+            self._show_toast(self._tr("settings_rebuild_correlation_profiles_failed_toast"))
+            self._set_status(
+                self._tr(
+                    "status_rebuild_correlation_profiles_failed",
+                    error=message or self._tr("status_unknown_error"),
+                ),
+                is_error=True,
+            )
+            return
+
+        result = payload if isinstance(payload, dict) else {}
+        profile_count = int(result.get("profile_count", 0) or 0)
+        self._show_toast(self._tr("settings_rebuild_correlation_profiles_done_toast"))
+        if bool(result.get("empty_index", False)):
+            self._set_status(self._tr("status_rebuild_correlation_profiles_empty"))
+            return
+        self._set_status(self._tr("status_rebuild_correlation_profiles_done", count=profile_count))
+
+    def _on_rebuild_correlation_profiles_thread_finished(self) -> None:
+        self.correlation_rebuild_thread = None
+        self.correlation_rebuild_worker = None
+        self.rebuild_correlation_profiles_button.setEnabled(True)
+
     def _show_toast(self, text: str) -> None:
         """Show temporary toast text."""
         self.toast_label.setText(text)
@@ -557,6 +637,8 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_page_title_label.setText(self._tr("character_page_title"))
         self.character_search_input.setPlaceholderText(self._tr("character_search_placeholder"))
         self.character_search_button.setText(self._tr("character_search_button"))
+        self.character_library_search_input.setPlaceholderText(self._tr("character_library_search_placeholder"))
+        self.character_library_search_button.setText(self._tr("character_library_search_button"))
         self.character_bulk_label.setText(self._tr("character_bulk_count_label"))
         self.character_bulk_button.setText(self._tr("character_bulk_build_button"))
         self.character_import_button.setText(self._tr("character_import_button"))
@@ -577,6 +659,8 @@ class MoeGirlTaggerWindowUiMixin:
         self.threshold_title_label.setText(self._tr("settings_threshold_title"))
         self.reset_settings_button.setText(self._tr("settings_reset"))
         self.save_settings_button.setText(self._tr("settings_save"))
+        self.rebuild_correlation_profiles_button.setText(self._tr("settings_rebuild_correlation_profiles"))
+        self.rebuild_correlation_profiles_hint_label.setText(self._tr("settings_rebuild_correlation_profiles_hint"))
 
         for key, label in self.threshold_name_labels.items():
             label.setText(self._tr(THRESHOLD_LABEL_KEYS[key]))

@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, Signal
 from apps.pyside.moegirl_character_manager_service import CharacterManagerService
 from apps.pyside.moegirl_tagger_gui_common import normalize_path_key
 from core.moegirl_tagger.character_search_provider import SearchCandidate
+from core.moegirl_tagger.custom_character_store import CustomCharacterStore
 
 AVATAR_REQUEST_HEADERS = {
     "User-Agent": (
@@ -160,6 +161,56 @@ class CharacterSearchWorker(QObject):
             self.finished.emit(False, str(error), [], {})
 
 
+class CharacterLibrarySearchWorker(QObject):
+    """Run local character-library filtering in background thread."""
+
+    finished = Signal(bool, str, object)
+
+    def __init__(self, service: CharacterManagerService, query: str, matcher) -> None:
+        super().__init__()
+        self._service = service
+        self._query = str(query or "").strip()
+        self._matcher = matcher
+
+    def run(self) -> None:
+        try:
+            records = self._service.list_characters()
+            if not self._query:
+                self.finished.emit(
+                    True,
+                    "",
+                    {
+                        "query": "",
+                        "matched_ids": None,
+                        "total": len(records),
+                        "matched_count": len(records),
+                    },
+                )
+                return
+
+            matched_ids: list[str] = []
+            for record in records:
+                if not callable(self._matcher):
+                    continue
+                if not self._matcher(record, self._query):
+                    continue
+                character_id = str(record.get("id", "")).strip()
+                if character_id:
+                    matched_ids.append(character_id)
+            self.finished.emit(
+                True,
+                "",
+                {
+                    "query": self._query,
+                    "matched_ids": matched_ids,
+                    "total": len(records),
+                    "matched_count": len(matched_ids),
+                },
+            )
+        except Exception as error:
+            self.finished.emit(False, str(error), {})
+
+
 class CharacterBulkBuildWorker(QObject):
     """Run bulk character import in background thread."""
 
@@ -244,3 +295,73 @@ class CharacterDeleteWorker(QObject):
             self.finished.emit(True, "", summary)
         except Exception as error:
             self.finished.emit(False, str(error), summary)
+
+
+class CorrelationProfileRebuildWorker(QObject):
+    """Force rebuild custom-character correlation profile cache in background."""
+
+    finished = Signal(bool, str, object)
+
+    def __init__(self, repo_root: Path, preferred_language: str = "zh-CN") -> None:
+        super().__init__()
+        self._repo_root = repo_root.resolve()
+        self._preferred_language = str(preferred_language).strip() or "zh-CN"
+
+    def run(self) -> None:
+        try:
+            from scripts.auto_tag_images import (
+                CORRELATION_PROFILE_FILE_NAME,
+                WD14Tagger,
+                ensure_model_assets,
+                load_or_build_custom_character_index,
+                normalize_token,
+                rebuild_character_correlation_profiles,
+            )
+        except Exception as error:
+            self.finished.emit(False, str(error), {})
+            return
+
+        try:
+            model_dir = (self._repo_root / "tools/wd-swinv2-tagger-v3").resolve()
+            custom_root = (self._repo_root / "data/character_library/custom").resolve()
+            profile_path = (custom_root / CORRELATION_PROFILE_FILE_NAME).resolve()
+
+            model_path, tags_path = ensure_model_assets(model_dir)
+            tagger = WD14Tagger(model_path=model_path, tags_path=tags_path)
+            tag_index = {
+                normalize_token(name): index
+                for index, (name, _category) in enumerate(tagger.tags)
+            }
+
+            store = CustomCharacterStore(custom_root)
+            custom_index = load_or_build_custom_character_index(
+                store=store,
+                tagger=tagger,
+                preferred_language=self._preferred_language,
+                rebuild=False,
+            )
+            if custom_index is None:
+                try:
+                    profile_path.unlink()
+                except FileNotFoundError:
+                    pass
+                except Exception:
+                    pass
+                self.finished.emit(
+                    True,
+                    "",
+                    {"profile_count": 0, "empty_index": True},
+                )
+                return
+
+            profiles = rebuild_character_correlation_profiles(custom_index, tag_index)
+            self.finished.emit(
+                True,
+                "",
+                {
+                    "profile_count": len(profiles),
+                    "empty_index": False,
+                },
+            )
+        except Exception as error:
+            self.finished.emit(False, str(error), {})

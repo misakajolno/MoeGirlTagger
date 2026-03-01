@@ -29,7 +29,9 @@ from apps.pyside.moegirl_tagger_gui_window_ui_mixin import MoeGirlTaggerWindowUi
 from apps.pyside.moegirl_tagger_gui_workers import (
     CharacterBulkBuildWorker,
     CharacterDeleteWorker,
+    CharacterLibrarySearchWorker,
     CharacterSearchWorker,
+    CorrelationProfileRebuildWorker,
     ClearTagsWorker,
 )
 from core.moegirl_tagger.character_search_provider import SearchCandidate
@@ -75,10 +77,14 @@ class MoeGirlTaggerWindow(
         self.clear_worker: ClearTagsWorker | None = None
         self.character_search_thread: QThread | None = None
         self.character_search_worker: CharacterSearchWorker | None = None
+        self.character_library_search_thread: QThread | None = None
+        self.character_library_search_worker: CharacterLibrarySearchWorker | None = None
         self.character_bulk_thread: QThread | None = None
         self.character_bulk_worker: CharacterBulkBuildWorker | None = None
         self.character_delete_thread: QThread | None = None
         self.character_delete_worker: CharacterDeleteWorker | None = None
+        self.correlation_rebuild_thread: QThread | None = None
+        self.correlation_rebuild_worker: CorrelationProfileRebuildWorker | None = None
         self.character_delete_preferred_row: int | None = None
         self.threshold_inputs: dict[str, QDoubleSpinBox] = {}
         self.threshold_name_labels: dict[str, QLabel] = {}
@@ -86,6 +92,7 @@ class MoeGirlTaggerWindow(
         self.language_buttons: dict[str, QPushButton] = {}
         self.search_candidates: list[SearchCandidate] = []
         self.search_candidate_avatar_payloads: dict[int, bytes] = {}
+        self.character_library_filter_ids: set[str] | None = None
         self.character_icon_cache: dict[str, QIcon] = {}
         self.toast_timer = QTimer(self)
         self.toast_timer.setSingleShot(True)

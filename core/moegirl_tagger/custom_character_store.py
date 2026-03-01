@@ -15,6 +15,51 @@ except Exception:  # pragma: no cover - fallback when PIL is unavailable
 
 SUPPORTED_LANGUAGE_CODES = ("zh-CN", "en-US", "ja-JP", "ko-KR")
 
+SOURCE_DIR_SPLIT_TOKENS = (" - ", " – ", " — ", "|", "｜")
+CANONICAL_SOURCE_DIR_ALIASES = {
+    "blue_archive": (
+        "blue_archive",
+        "bluearchive",
+        "蔚蓝档案",
+        "ブルーアーカイブ",
+        "블루아카이브",
+    ),
+    "genshin_impact": (
+        "genshin_impact",
+        "genshinimpact",
+        "genshin",
+        "yuanshen",
+        "yuan_shen",
+        "原神",
+        "げんしん",
+    ),
+    "honkai_star_rail": (
+        "honkai_star_rail",
+        "honkai_starrail",
+        "honkai_starrail",
+        "hsr",
+        "崩坏星穹铁道",
+        "崩壊スターレイル",
+        "崩壞星穹鐵道",
+        "붕괴스타레일",
+    ),
+    "honkai_impact_3rd": (
+        "honkai_impact_3rd",
+        "honkai_impact3rd",
+        "崩坏3",
+        "崩壊3rd",
+        "붕괴3rd",
+    ),
+    "zenless_zone_zero": (
+        "zenless_zone_zero",
+        "zenlesszonezero",
+        "zzz",
+        "绝区零",
+        "ゼンレスゾーンゼロ",
+        "젠레스존제로",
+    ),
+}
+
 
 def now_iso() -> str:
     return dt.datetime.now().replace(microsecond=0).isoformat()
@@ -23,6 +68,47 @@ def now_iso() -> str:
 def normalize_slug(value: str) -> str:
     lowered = value.strip().lower().replace(" ", "_").replace("-", "_")
     return "".join(char for char in lowered if char.isalnum() or char == "_").strip("_")
+
+
+def _strip_source_title_suffix(value: str) -> str:
+    title = str(value or "").strip()
+    if not title:
+        return ""
+    earliest = len(title)
+    found = False
+    for token in SOURCE_DIR_SPLIT_TOKENS:
+        index = title.find(token)
+        if index <= 0:
+            continue
+        earliest = min(earliest, index)
+        found = True
+    if found:
+        title = title[:earliest].strip()
+    for token in ("（", "("):
+        index = title.find(token)
+        if index > 0:
+            title = title[:index].strip()
+    return title
+
+
+def _canonical_source_dir_slug(source_title: str) -> str:
+    stripped = _strip_source_title_suffix(source_title)
+    slug = normalize_slug(stripped) or normalize_slug(str(source_title or "").strip())
+    if not slug:
+        return "unknown_source"
+
+    for canonical, aliases in CANONICAL_SOURCE_DIR_ALIASES.items():
+        normalized_aliases = {normalize_slug(alias) for alias in aliases if normalize_slug(alias)}
+        normalized_aliases.add(canonical)
+        for alias in normalized_aliases:
+            if slug == alias or slug.startswith(f"{alias}_"):
+                return canonical
+    return slug
+
+
+def canonical_source_key(source_title: str) -> str:
+    """Return canonical source key for cross-language/source-title matching."""
+    return _canonical_source_dir_slug(source_title)
 
 
 def file_sha1(path: Path) -> str:
@@ -206,6 +292,101 @@ class CustomCharacterStore:
         self.references_dir.mkdir(parents=True, exist_ok=True)
         if not self.characters_path.exists():
             self._write_all([])
+        self._migrate_reference_layout_by_source()
+
+    def _reference_source_dir_name(self, source_title: str) -> str:
+        return _canonical_source_dir_slug(source_title)
+
+    def _reference_character_dir(self, record: dict) -> Path:
+        source_dir = self._reference_source_dir_name(str(record.get("source_title", "")).strip())
+        character_id = str(record.get("id", "")).strip()
+        if not character_id:
+            character_id = "unknown_character"
+        return self.references_dir / source_dir / character_id
+
+    def _is_inside_root(self, path: Path) -> bool:
+        try:
+            path.resolve().relative_to(self.root.resolve())
+        except Exception:
+            return False
+        return True
+
+    def _resolve_non_conflicting_target(self, source_path: Path, target_path: Path) -> Path:
+        if not target_path.exists():
+            return target_path
+        try:
+            if source_path.resolve() == target_path.resolve():
+                return target_path
+        except Exception:
+            pass
+
+        stem = target_path.stem
+        suffix = target_path.suffix
+        for index in range(1, 10000):
+            candidate = target_path.with_name(f"{stem}_{index}{suffix}")
+            if not candidate.exists():
+                return candidate
+        return target_path.with_name(f"{stem}_{now_iso().replace(':', '').replace('-', '')}{suffix}")
+
+    def _prune_empty_reference_dirs(self) -> None:
+        if not self.references_dir.exists():
+            return
+        directories = sorted(
+            [path for path in self.references_dir.rglob("*") if path.is_dir()],
+            key=lambda item: len(item.parts),
+            reverse=True,
+        )
+        for directory in directories:
+            try:
+                directory.rmdir()
+            except OSError:
+                continue
+
+    def _migrate_reference_layout_by_source(self) -> None:
+        records = self._read_all()
+        if not records:
+            self._prune_empty_reference_dirs()
+            return
+
+        changed = False
+        for index, record in enumerate(records):
+            references = [str(value).replace("\\", "/").strip() for value in record.get("reference_images", [])]
+            references = [value for value in references if value]
+            if not references:
+                continue
+            character_dir = self._reference_character_dir(record)
+            character_dir.mkdir(parents=True, exist_ok=True)
+
+            migrated_references: list[str] = []
+            seen: set[str] = set()
+            for relative in references:
+                source_path = (self.root / Path(relative)).resolve()
+                if not self._is_inside_root(source_path):
+                    continue
+                if not source_path.exists() or not source_path.is_file():
+                    continue
+                target_path = character_dir / source_path.name
+                if source_path != target_path:
+                    target_path = self._resolve_non_conflicting_target(source_path, target_path)
+                    if source_path != target_path:
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(source_path), str(target_path))
+                migrated_relative = target_path.relative_to(self.root).as_posix()
+                if migrated_relative in seen:
+                    continue
+                seen.add(migrated_relative)
+                migrated_references.append(migrated_relative)
+
+            if migrated_references != references:
+                updated = dict(record)
+                updated["reference_images"] = migrated_references
+                updated["updated_at"] = now_iso()
+                records[index] = updated
+                changed = True
+
+        if changed:
+            self._write_all(records)
+        self._prune_empty_reference_dirs()
 
     def _read_all(self) -> list[dict]:
         if not self.characters_path.exists():
@@ -358,7 +539,7 @@ class CustomCharacterStore:
         if character is None:
             raise KeyError(f"Character not found: {character_id}")
 
-        character_dir = self.references_dir / str(character["id"])
+        character_dir = self._reference_character_dir(character)
         character_dir.mkdir(parents=True, exist_ok=True)
         existing: list[str] = []
         seen: set[str] = set()
@@ -412,9 +593,21 @@ class CustomCharacterStore:
             return False
         self._write_all(kept)
 
-        character_dir = self.references_dir / target
-        if character_dir.exists():
-            shutil.rmtree(character_dir, ignore_errors=True)
+        references = [str(value).replace("\\", "/").strip() for value in removed_record.get("reference_images", [])]
+        for relative in references:
+            reference_path = (self.root / Path(relative)).resolve()
+            if not self._is_inside_root(reference_path):
+                continue
+            if reference_path.exists() and reference_path.is_file():
+                reference_path.unlink(missing_ok=True)
+
+        legacy_dir = self.references_dir / target
+        if legacy_dir.exists() and legacy_dir.is_dir():
+            shutil.rmtree(legacy_dir, ignore_errors=True)
+        for candidate_dir in self.references_dir.glob(f"*/{target}"):
+            if candidate_dir.exists() and candidate_dir.is_dir():
+                shutil.rmtree(candidate_dir, ignore_errors=True)
+        self._prune_empty_reference_dirs()
 
         avatar_relative = str(removed_record.get("avatar_local_path", "")).strip()
         if avatar_relative:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from PySide6.QtCore import QSize, Qt, QThread
 from PySide6.QtGui import QIcon, QPainter, QPainterPath, QPixmap
@@ -12,6 +13,7 @@ from apps.pyside.moegirl_tagger_gui_dialogs import CharacterMergeConfirmDialog, 
 from apps.pyside.moegirl_tagger_gui_workers import (
     CharacterBulkBuildWorker,
     CharacterDeleteWorker,
+    CharacterLibrarySearchWorker,
     CharacterSearchWorker,
 )
 from core.moegirl_tagger.character_search_provider import SearchCandidate
@@ -79,6 +81,58 @@ def build_top_cover_rounded_avatar(source: QPixmap, *, size: int = 46, radius: i
     painter.drawPixmap(0, 0, cropped)
     painter.end()
     return target
+
+
+def normalize_library_search_text(value: str) -> str:
+    """Normalize multilingual free text for fuzzy library filtering."""
+    text = str(value or "").strip().casefold()
+    if not text:
+        return ""
+    text = re.sub(r"[_\-\s]+", "", text)
+    text = re.sub(r"[^\w\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+", "", text)
+    return text
+
+
+def _iter_record_multilingual_texts(record: dict) -> list[str]:
+    values: list[str] = []
+
+    def append_one(raw: object) -> None:
+        text = str(raw or "").strip()
+        if text:
+            values.append(text)
+
+    append_one(record.get("display_name"))
+    append_one(record.get("source_title"))
+    for key in ("aliases", "source_aliases"):
+        payload = record.get(key)
+        if not isinstance(payload, list):
+            continue
+        for entry in payload:
+            if isinstance(entry, dict):
+                append_one(entry.get("name") or entry.get("display_name") or entry.get("value") or entry.get("alias"))
+            else:
+                append_one(entry)
+    return values
+
+
+def record_matches_library_query(record: dict, query: str) -> bool:
+    """Match one record against free-form query across multilingual name/source fields."""
+    raw_query = str(query or "").strip()
+    if not raw_query:
+        return True
+    terms = [normalize_library_search_text(chunk) for chunk in re.split(r"\s+", raw_query) if chunk.strip()]
+    terms = [value for value in terms if value]
+    if not terms:
+        return True
+
+    haystack = " ".join(
+        normalized
+        for normalized in (normalize_library_search_text(text) for text in _iter_record_multilingual_texts(record))
+        if normalized
+    )
+    if not haystack:
+        return False
+    return all(term in haystack for term in terms)
 
 
 class MoeGirlTaggerWindowCharacterMixin:
@@ -176,8 +230,12 @@ class MoeGirlTaggerWindowCharacterMixin:
     def _reload_character_library_list(self, preferred_row: int | None = None) -> None:
         self.character_library_list.clear()
         records = self.character_manager_service.list_characters()
+        filter_ids = getattr(self, "character_library_filter_ids", None)
         language_code = str(getattr(self, "current_language", "zh-CN")).strip() or "zh-CN"
         for record in records:
+            character_id = str(record.get("id", "")).strip()
+            if filter_ids is not None and character_id not in filter_ids:
+                continue
             name = select_localized_alias(record, language_code).strip() or "?"
             source = select_localized_source_title(record, language_code).strip() or "-"
             refs_count = len([value for value in record.get("reference_images", []) if str(value).strip()])
@@ -185,7 +243,6 @@ class MoeGirlTaggerWindowCharacterMixin:
             disabled_suffix = "" if enabled else f" {self._tr('character_library_list_disabled_suffix')}"
             refs_label = self._tr("character_library_list_refs_label")
             item = QListWidgetItem(f"{name}{disabled_suffix}  |  {source}  |  {refs_label}{refs_count}")
-            character_id = str(record.get("id", "")).strip()
             item.setData(Qt.UserRole, character_id)
             avatar_relative = str(record.get("avatar_local_path", "")).strip()
             if avatar_relative:
@@ -200,6 +257,68 @@ class MoeGirlTaggerWindowCharacterMixin:
         target_row = resolve_character_library_row(preferred_row, self.character_library_list.count())
         if target_row >= 0:
             self.character_library_list.setCurrentRow(target_row)
+
+    def _is_character_library_search_running(self) -> bool:
+        return self.character_library_search_thread is not None and self.character_library_search_thread.isRunning()
+
+    def _start_character_library_search(self) -> None:
+        if self._is_character_library_search_running():
+            self._set_status(self._tr("status_character_library_search_running"))
+            return
+        query = str(self.character_library_search_input.text() or "").strip()
+        self.character_library_search_button.setEnabled(False)
+        self.character_library_search_input.setEnabled(False)
+        self.character_library_list.setEnabled(False)
+        self._set_status(self._tr("status_character_library_searching"))
+
+        self.character_library_search_thread = QThread(self)
+        self.character_library_search_worker = CharacterLibrarySearchWorker(
+            self.character_manager_service,
+            query=query,
+            matcher=record_matches_library_query,
+        )
+        self.character_library_search_worker.moveToThread(self.character_library_search_thread)
+        self.character_library_search_thread.started.connect(self.character_library_search_worker.run)
+        self.character_library_search_worker.finished.connect(self._on_character_library_search_finished)
+        self.character_library_search_worker.finished.connect(self.character_library_search_thread.quit)
+        self.character_library_search_worker.finished.connect(self.character_library_search_worker.deleteLater)
+        self.character_library_search_thread.finished.connect(self.character_library_search_thread.deleteLater)
+        self.character_library_search_thread.finished.connect(self._on_character_library_search_thread_finished)
+        self.character_library_search_thread.start()
+
+    def _on_character_library_search_finished(self, ok: bool, message: str, payload: object) -> None:
+        if not ok:
+            self._set_status(
+                self._tr("status_character_library_search_failed", error=message or self._tr("status_unknown_error")),
+                is_error=True,
+            )
+            return
+        data = payload if isinstance(payload, dict) else {}
+        matched_ids = data.get("matched_ids")
+        if matched_ids is None:
+            self.character_library_filter_ids = None
+        else:
+            self.character_library_filter_ids = {
+                str(value).strip()
+                for value in (matched_ids if isinstance(matched_ids, list) else [])
+                if str(value).strip()
+            }
+        self._reload_character_library_list(preferred_row=0)
+        self._set_status(
+            self._tr(
+                "status_character_library_search_done",
+                count=self.character_library_list.count(),
+            )
+        )
+
+    def _on_character_library_search_thread_finished(self) -> None:
+        self.character_library_search_thread = None
+        self.character_library_search_worker = None
+        if self._is_character_bulk_build_running() or self._is_character_delete_running():
+            return
+        self.character_library_search_button.setEnabled(True)
+        self.character_library_search_input.setEnabled(True)
+        self.character_library_list.setEnabled(True)
 
     def _selected_search_candidates(self) -> list[SearchCandidate]:
         return [candidate for _index, candidate in self._selected_search_candidate_entries()]
@@ -312,8 +431,11 @@ class MoeGirlTaggerWindowCharacterMixin:
         self.character_bulk_progress.setFormat(f"{bounded_processed} / {safe_total}")
 
     def _set_character_bulk_widgets_enabled(self, enabled: bool) -> None:
+        local_search_enabled = enabled and not self._is_character_library_search_running()
         self.character_search_button.setEnabled(enabled)
         self.character_search_input.setEnabled(enabled)
+        self.character_library_search_input.setEnabled(local_search_enabled)
+        self.character_library_search_button.setEnabled(local_search_enabled)
         self.character_import_button.setEnabled(enabled)
         self.character_add_refs_button.setEnabled(enabled)
         self.character_delete_button.setEnabled(enabled)
@@ -321,11 +443,14 @@ class MoeGirlTaggerWindowCharacterMixin:
         self.character_bulk_button.setEnabled(enabled)
         self.character_bulk_count_spin.setEnabled(enabled)
         self.character_search_list.setEnabled(enabled)
-        self.character_library_list.setEnabled(enabled)
+        self.character_library_list.setEnabled(local_search_enabled)
 
     def _set_character_delete_widgets_enabled(self, enabled: bool) -> None:
+        local_search_enabled = enabled and not self._is_character_library_search_running()
         self.character_delete_button.setEnabled(enabled)
-        self.character_library_list.setEnabled(enabled)
+        self.character_library_search_input.setEnabled(local_search_enabled)
+        self.character_library_search_button.setEnabled(local_search_enabled)
+        self.character_library_list.setEnabled(local_search_enabled)
 
     def _confirm_first_bulk_build(self, limit: int) -> bool:
         dialog = ClearTagsConfirmDialog(
@@ -781,4 +906,12 @@ class MoeGirlTaggerWindowCharacterMixin:
             if self.character_delete_thread is not None:
                 self.character_delete_thread.quit()
                 self.character_delete_thread.wait(2000)
+        if hasattr(self, "_is_correlation_profile_rebuild_running") and self._is_correlation_profile_rebuild_running():
+            if self.correlation_rebuild_thread is not None:
+                self.correlation_rebuild_thread.quit()
+                self.correlation_rebuild_thread.wait(2000)
+        if self._is_character_library_search_running():
+            if self.character_library_search_thread is not None:
+                self.character_library_search_thread.quit()
+                self.character_library_search_thread.wait(2000)
         super().closeEvent(event)

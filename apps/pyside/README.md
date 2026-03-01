@@ -10,7 +10,7 @@
   - genshin_impact_characters.csv: 原神可玩角色（按 Character/List 第一张表）
   - zenless_zone_zero_agents.csv: 绝区零可用 Agent（按 Agent/List 第一张表）
   - custom/characters.json: 本地自定义角色库（GUI 动态维护）
-  - custom/references/<character_id>/*: 自定义角色参考图
+  - custom/references/<source_title_slug>/<character_id>/*: 自定义角色参考图
   - custom/index.npz: 自定义角色检索索引
   - custom/index_meta.json: 检索索引元信息
   - custom/build_state.json: 批量构建状态快照（中断恢复提示）
