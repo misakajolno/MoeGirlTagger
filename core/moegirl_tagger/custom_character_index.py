@@ -18,6 +18,7 @@ class CharacterVectorMatch:
     character_name: str
     image_path: str
     similarity: float
+    row_index: int
 
 
 class CharacterVectorIndex:
@@ -43,6 +44,10 @@ class CharacterVectorIndex:
         self.character_names = [str(value) for value in character_names]
         self.image_paths = [str(value) for value in image_paths]
         self._normalized = self._normalize_rows(self.embeddings)
+        counts: dict[str, int] = {}
+        for character_id in self.character_ids:
+            counts[character_id] = counts.get(character_id, 0) + 1
+        self.reference_count_by_id = counts
 
     @staticmethod
     def _normalize_rows(matrix: np.ndarray) -> np.ndarray:
@@ -89,6 +94,7 @@ class CharacterVectorIndex:
                     character_name=self.character_names[int(index)],
                     image_path=self.image_paths[int(index)],
                     similarity=similarity,
+                    row_index=int(index),
                 )
             )
         return matches
@@ -151,4 +157,3 @@ class CharacterVectorIndex:
             character_names=character_names,
             image_paths=image_paths,
         )
-
