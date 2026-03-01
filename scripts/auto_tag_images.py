@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 from pathlib import Path
 
 try:
@@ -101,6 +102,16 @@ def parse_args() -> argparse.Namespace:
         help="Preferred language code for custom character names (e.g. zh-CN/en-US/ja-JP).",
     )
     parser.add_argument(
+        "--disable-character-recognition",
+        action="store_true",
+        help="Disable custom character recognition and only keep feature/work analysis.",
+    )
+    parser.add_argument(
+        "--stream-records",
+        action="store_true",
+        help="Emit one machine-readable record line per image for GUI real-time updates.",
+    )
+    parser.add_argument(
         "--multi-character-threshold-floor",
         type=float,
         default=DEFAULT_MULTI_CHARACTER_THRESHOLD_FLOOR,
@@ -153,15 +164,17 @@ def main() -> None:
         priority_rules_path,
         sensitive_terms_path=sensitive_terms_path,
     )
-    custom_store = CustomCharacterStore(custom_character_dir)
-    custom_index = load_or_build_custom_character_index(
-        store=custom_store,
-        tagger=tagger,
-        preferred_language=str(args.custom_character_language).strip() or "zh-CN",
-        rebuild=bool(args.rebuild_custom_index),
-    )
-    if custom_index is not None and bool(args.rebuild_correlation_profiles):
-        rebuild_character_correlation_profiles(custom_index, wd14_tag_index)
+    custom_index = None
+    if not bool(args.disable_character_recognition):
+        custom_store = CustomCharacterStore(custom_character_dir)
+        custom_index = load_or_build_custom_character_index(
+            store=custom_store,
+            tagger=tagger,
+            preferred_language=str(args.custom_character_language).strip() or "zh-CN",
+            rebuild=bool(args.rebuild_custom_index),
+        )
+        if custom_index is not None and bool(args.rebuild_correlation_profiles):
+            rebuild_character_correlation_profiles(custom_index, wd14_tag_index)
 
     if args.input_list:
         input_list_path = (root / args.input_list).resolve()
@@ -170,6 +183,8 @@ def main() -> None:
         images = collect_images(image_dir=image_dir, recursive=not args.non_recursive)
     now_iso = dt.datetime.now().replace(microsecond=0).isoformat()
     records: list[dict] = []
+    stream_prefix = "__MOEGIRL_RECORD__:"
+    stream_records = bool(args.stream_records)
 
     for image_path in images:
         predicted, score_vector = tagger.predict_with_vector(image_path)
@@ -185,32 +200,35 @@ def main() -> None:
             },
             tag_min_scores={"barefoot": args.barefoot_feature_threshold},
         )
-        inferred_character_count = infer_character_count(predicted, min_score=0.35, max_count=3)
-        character_query_items = build_custom_character_query_items(
-            image_path=image_path,
-            full_query_vector=score_vector,
-            tagger=tagger,
-            inferred_character_count=inferred_character_count,
-        )
-        detected_head_count = max(0, len(character_query_items) - 1)
-        effective_character_top_k = resolve_effective_character_top_k(
-            base_top_k=int(args.custom_character_topk),
-            inferred_count=inferred_character_count,
-            detected_head_count=detected_head_count,
-        )
-        effective_character_threshold = resolve_effective_character_threshold(
-            base_threshold=args.custom_character_threshold,
-            inferred_count=inferred_character_count,
-            multi_floor=args.multi_character_threshold_floor,
-        )
-        characters = resolve_custom_characters_with_region_queries(
-            query_items=character_query_items,
-            custom_index=custom_index,
-            min_similarity=effective_character_threshold,
-            top_k=effective_character_top_k,
-            min_margin=max(0.0, float(args.custom_character_margin)),
-            tag_index=wd14_tag_index,
-        )
+        if bool(args.disable_character_recognition):
+            characters = []
+        else:
+            inferred_character_count = infer_character_count(predicted, min_score=0.35, max_count=3)
+            character_query_items = build_custom_character_query_items(
+                image_path=image_path,
+                full_query_vector=score_vector,
+                tagger=tagger,
+                inferred_character_count=inferred_character_count,
+            )
+            detected_head_count = max(0, len(character_query_items) - 1)
+            effective_character_top_k = resolve_effective_character_top_k(
+                base_top_k=int(args.custom_character_topk),
+                inferred_count=inferred_character_count,
+                detected_head_count=detected_head_count,
+            )
+            effective_character_threshold = resolve_effective_character_threshold(
+                base_threshold=args.custom_character_threshold,
+                inferred_count=inferred_character_count,
+                multi_floor=args.multi_character_threshold_floor,
+            )
+            characters = resolve_custom_characters_with_region_queries(
+                query_items=character_query_items,
+                custom_index=custom_index,
+                min_similarity=effective_character_threshold,
+                top_k=effective_character_top_k,
+                min_margin=max(0.0, float(args.custom_character_margin)),
+                tag_index=wd14_tag_index,
+            )
         copyright_tags = [
             tag.name
             for tag in predicted
@@ -227,6 +245,11 @@ def main() -> None:
             now_iso=now_iso,
         )
         records.append(record)
+        if stream_records:
+            print(
+                f"{stream_prefix}{json.dumps(record, ensure_ascii=False, separators=(',', ':'))}",
+                flush=True,
+            )
 
     written = write_jsonl(queue_output, records)
     target, updated, skipped = process_and_write_metadata(

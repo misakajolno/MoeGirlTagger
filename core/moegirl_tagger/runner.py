@@ -27,6 +27,7 @@ class AutoTagOptions:
     barefoot_feature_threshold: float = 0.35
     copyright_threshold: float = 0.70
     custom_character_language: str = "zh-CN"
+    recognize_characters: bool = True
 
 
 def parse_pipeline_summary(stdout: str) -> dict[str, int]:
@@ -75,7 +76,7 @@ def build_auto_tag_command(
     Returns:
         Shell-safe argument list.
     """
-    return [
+    command = [
         sys.executable,
         "-X",
         "utf8",
@@ -106,7 +107,12 @@ def build_auto_tag_command(
         str(options.copyright_threshold),
         "--custom-character-language",
         options.custom_character_language,
-    ] + (["--input-list", options.input_list] if options.input_list else [])
+    ]
+    if not options.recognize_characters:
+        command.append("--disable-character-recognition")
+    if options.input_list:
+        command.extend(["--input-list", options.input_list])
+    return command
 
 
 def run_auto_tag_pipeline(

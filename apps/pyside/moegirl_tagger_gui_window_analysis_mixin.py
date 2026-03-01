@@ -331,17 +331,23 @@ class MoeGirlTaggerWindowAnalysisMixin:
         self._set_status(self._tr("status_analysis_started", count=len(selected_paths)))
 
         self.worker_thread = QThread(self)
+        recognize_characters = bool(self.character_recognition_enabled)
+        if hasattr(self, "recognize_characters_checkbox"):
+            recognize_characters = bool(self.recognize_characters_checkbox.isChecked())
+            self.character_recognition_enabled = recognize_characters
         self.worker = AnalysisWorker(
             self.repo_root,
             selected_paths,
             self.queue_output,
             thresholds=self.threshold_values.copy(),
             language_code=self.current_language,
+            recognize_characters=recognize_characters,
         )
         self.worker.moveToThread(self.worker_thread)
 
         self.worker_thread.started.connect(self.worker.run)
         self.worker.log.connect(self._append_status)
+        self.worker.record_ready.connect(self._on_analysis_record_ready)
         self.worker.finished.connect(self._on_analysis_finished)
         self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -369,6 +375,17 @@ class MoeGirlTaggerWindowAnalysisMixin:
             text: Status text.
         """
         self._set_status(f"{self._tr('status_prefix')}: {text}")
+
+    def _on_analysis_record_ready(self, path_key: str, record: object) -> None:
+        """Update one row as soon as analysis result for that image is ready."""
+        if path_key not in self.image_paths_by_key:
+            return
+        if not isinstance(record, dict):
+            return
+        has_tags = any(str(value).strip() for value in record.get("characters", [])) or any(
+            str(value).strip() for value in record.get("feature_tags", [])
+        )
+        self.image_model.set_existing_tags_by_key(path_key, self._format_feature_text(record), has_tags)
 
     def _on_analysis_finished(self, ok: bool, message: str, records: dict) -> None:
         """Handle analysis completion and update list rows.

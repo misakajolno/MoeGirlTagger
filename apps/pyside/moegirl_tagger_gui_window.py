@@ -11,7 +11,9 @@ from PySide6.QtWidgets import QDoubleSpinBox, QLabel, QMainWindow, QPushButton
 
 from apps.pyside.moegirl_character_manager_service import CharacterManagerService
 from apps.pyside.moegirl_tagger_gui_common import (
+    CHARACTER_RECOGNITION_SETTING_KEY,
     DEFAULT_LANGUAGE,
+    DEFAULT_RECOGNIZE_CHARACTERS,
     DEFAULT_THRESHOLDS,
     LANGUAGE_SETTING_KEY,
     LAST_OPEN_DIR_SETTING_KEY,
@@ -20,6 +22,7 @@ from apps.pyside.moegirl_tagger_gui_common import (
     clamp_threshold,
     load_taxonomy_name_map,
     normalize_language_code,
+    parse_settings_bool,
 )
 from apps.pyside.moegirl_tagger_gui_model import ImageListModel
 from apps.pyside.moegirl_tagger_gui_worker import AnalysisWorker
@@ -69,6 +72,7 @@ class MoeGirlTaggerWindow(
         self._recovered_stale_bulk_build = self.character_manager_service.mark_stale_bulk_build_if_needed()
 
         self.threshold_values = self._load_threshold_values()
+        self.character_recognition_enabled = self._load_character_recognition_enabled()
         self.image_paths_by_key: dict[str, Path] = {}
         self.image_model = ImageListModel(self)
         self.worker_thread: QThread | None = None
@@ -155,6 +159,11 @@ class MoeGirlTaggerWindow(
                 parsed = float(default_value)
             values[key] = clamp_threshold(parsed)
         return values
+
+    def _load_character_recognition_enabled(self) -> bool:
+        """Load the persisted character-recognition toggle state."""
+        raw_value = self.settings.value(CHARACTER_RECOGNITION_SETTING_KEY, DEFAULT_RECOGNIZE_CHARACTERS)
+        return parse_settings_bool(raw_value, default=DEFAULT_RECOGNIZE_CHARACTERS)
 
     def _tr(self, key: str, **kwargs) -> str:
         """Translate UI text with current language fallback."""

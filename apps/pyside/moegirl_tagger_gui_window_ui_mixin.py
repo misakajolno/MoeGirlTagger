@@ -27,7 +27,9 @@ from PySide6.QtWidgets import (
 )
 
 from apps.pyside.moegirl_tagger_gui_common import (
+    CHARACTER_RECOGNITION_SETTING_KEY,
     DEFAULT_LANGUAGE,
+    DEFAULT_RECOGNIZE_CHARACTERS,
     DEFAULT_THRESHOLDS,
     LANGUAGE_OPTIONS,
     LANGUAGE_SETTING_KEY,
@@ -44,7 +46,7 @@ from apps.pyside.moegirl_tagger_gui_common import (
 from apps.pyside.moegirl_tagger_gui_list import ImageListDelegate, ImageListView
 from apps.pyside.moegirl_tagger_gui_styles import build_window_qss
 from apps.pyside.moegirl_tagger_gui_workers import CorrelationProfileRebuildWorker
-from apps.pyside.moegirl_tagger_gui_widgets import DragBar, PreviewCanvas
+from apps.pyside.moegirl_tagger_gui_widgets import CapsuleSwitch, DragBar, PreviewCanvas
 from core.version import APP_VERSION
 
 
@@ -413,6 +415,18 @@ class MoeGirlTaggerWindowUiMixin:
             language_layout.addWidget(button)
         language_layout.addStretch(1)
         layout.addLayout(language_layout)
+
+        self.character_recognition_title_label = QLabel()
+        self.character_recognition_title_label.setObjectName("SettingsSectionTitle")
+        layout.addWidget(self.character_recognition_title_label)
+
+        self.recognize_characters_checkbox = CapsuleSwitch()
+        recognition_layout = QHBoxLayout()
+        recognition_layout.setContentsMargins(0, 0, 0, 0)
+        recognition_layout.setSpacing(0)
+        recognition_layout.addWidget(self.recognize_characters_checkbox, 0, Qt.AlignLeft)
+        recognition_layout.addStretch(1)
+        layout.addLayout(recognition_layout)
         layout.addSpacing(10)
 
         self.threshold_title_label = QLabel()
@@ -537,11 +551,15 @@ class MoeGirlTaggerWindowUiMixin:
         """Sync threshold controls with persisted values."""
         for key, spinbox in self.threshold_inputs.items():
             spinbox.setValue(self.threshold_values.get(key, DEFAULT_THRESHOLDS[key]))
+        if hasattr(self, "recognize_characters_checkbox"):
+            self.recognize_characters_checkbox.setChecked(bool(self.character_recognition_enabled))
 
     def _reset_threshold_inputs(self) -> None:
         """Reset threshold controls to default values."""
         for key, spinbox in self.threshold_inputs.items():
             spinbox.setValue(DEFAULT_THRESHOLDS[key])
+        if hasattr(self, "recognize_characters_checkbox"):
+            self.recognize_characters_checkbox.setChecked(DEFAULT_RECOGNIZE_CHARACTERS)
 
     def _save_threshold_settings(self) -> None:
         """Save threshold values to QSettings."""
@@ -551,6 +569,9 @@ class MoeGirlTaggerWindowUiMixin:
             saved_values[key] = value
             self.settings.setValue(THRESHOLD_SETTING_KEYS[key], value)
         self.threshold_values = saved_values
+        recognize_characters = bool(self.recognize_characters_checkbox.isChecked())
+        self.character_recognition_enabled = recognize_characters
+        self.settings.setValue(CHARACTER_RECOGNITION_SETTING_KEY, recognize_characters)
         self._show_toast(self._tr("settings_saved_toast"))
         self._set_status(self._tr("settings_saved_status"))
 
@@ -678,6 +699,7 @@ class MoeGirlTaggerWindowUiMixin:
         self.settings_diff_hint_label.setText(self._tr("settings_diff_hint"))
         self.settings_threshold_note_label.setText(self._tr("settings_threshold_notes"))
         self.language_title_label.setText(self._tr("settings_language_title"))
+        self.character_recognition_title_label.setText(self._tr("settings_character_recognition_label"))
         self.threshold_title_label.setText(self._tr("settings_threshold_title"))
         self.reset_settings_button.setText(self._tr("settings_reset"))
         self.save_settings_button.setText(self._tr("settings_save"))

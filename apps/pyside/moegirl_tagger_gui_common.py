@@ -18,6 +18,7 @@ DELETE_BUTTON_MARGIN = 10
 SHOW_DELETE_HITBOX = False
 LAST_OPEN_DIR_SETTING_KEY = "ui/last_open_dir"
 LANGUAGE_SETTING_KEY = "ui/language"
+CHARACTER_RECOGNITION_SETTING_KEY = "analysis/recognize_characters"
 APP_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "app_icon.ico"
 SPIN_UP_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "spin_up.svg"
 SPIN_DOWN_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "spin_down.svg"
@@ -27,6 +28,7 @@ FEATURE_PREVIEW_LIMIT = 8
 FEATURE_FORCE_VISIBLE = ("barefoot",)
 THRESHOLD_MIN_VALUE = 0.0
 THRESHOLD_MAX_VALUE = 1.0
+DEFAULT_RECOGNIZE_CHARACTERS = True
 DEFAULT_LANGUAGE = "zh-CN"
 LANGUAGE_OPTIONS = (
     ("zh-CN", "中文"),
@@ -200,6 +202,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_range_hint": "阈值可调范围：最小值 {min}，最大值 {max}。",
         "settings_diff_hint": "最小值更宽松（更容易命中），最大值更严格（更不容易命中）。",
         "settings_language_title": "语言切换",
+        "settings_character_recognition_label": "是否识别角色",
         "settings_threshold_title": "阈值配置",
         "settings_threshold_helper": "所有阈值保存后会用于下一次分析。",
         "settings_threshold_notes": "备注：\n自定义角色阈值：自定义角色库最低相似度。\n自定义角色区分边距：第一候选与第二候选的最小差值，越大越不易混图。\n作品阈值：作品（版权）标签最低命中分。",
@@ -370,6 +373,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_range_hint": "Threshold range: min {min}, max {max}.",
         "settings_diff_hint": "Lower values are looser (more hits); higher values are stricter (fewer hits).",
         "settings_language_title": "Language",
+        "settings_character_recognition_label": "Recognize Characters",
         "settings_threshold_title": "Thresholds",
         "settings_threshold_helper": "Saved thresholds will be used in the next analysis run.",
         "settings_threshold_notes": "Notes:\nCustom Character Threshold: minimum similarity for custom library matching.\nCustom Character Margin: minimum top1-top2 gap; larger values reduce mixed identities.\nCopyright Threshold: minimum score for copyright/work tags.",
@@ -960,6 +964,24 @@ def load_taxonomy_name_map(
 def clamp_threshold(value: float) -> float:
     """Clamp threshold value into accepted range."""
     return min(THRESHOLD_MAX_VALUE, max(THRESHOLD_MIN_VALUE, float(value)))
+
+
+def parse_settings_bool(value: object, default: bool = False) -> bool:
+    """Parse a QSettings boolean-like value with fallback."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return bool(default)
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if not text:
+        return bool(default)
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
 
 
 def normalize_language_code(value: str) -> str:
