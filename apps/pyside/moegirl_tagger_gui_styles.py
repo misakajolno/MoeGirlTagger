@@ -79,6 +79,16 @@ def build_window_qss(spin_up_icon: str, spin_down_icon: str) -> str:
         QLabel#SettingsSubtitle { color: #9c6320; background: #fff6e8; border-radius: 10px; padding: 8px 10px; }
         QLabel#SettingsSectionTitle { color: #273142; font-weight: 600; font-size: 14px; margin-top: 2px; }
         QLabel#SettingsHint { color: #617188; }
+        QLabel#SettingsVersionLabel { color: #8e99ab; }
+        QPushButton#SettingsLinkButton {
+            background: transparent;
+            border: none;
+            color: #2d7dff;
+            padding: 2px 4px;
+            text-decoration: underline;
+        }
+        QPushButton#SettingsLinkButton:hover { color: #1f6ee6; }
+        QPushButton#SettingsLinkButton:pressed { color: #145bc0; }
         QProgressBar#CharacterBulkProgress {
             background: #ecf1fb;
             border: 1px solid #d2ddef;

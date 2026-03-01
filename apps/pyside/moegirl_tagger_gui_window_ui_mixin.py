@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, QThread
-from PySide6.QtGui import QColor, QKeySequence, QShortcut
+from PySide6.QtCore import QSize, Qt, QThread, QUrl
+from PySide6.QtGui import QColor, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
@@ -45,6 +45,10 @@ from apps.pyside.moegirl_tagger_gui_list import ImageListDelegate, ImageListView
 from apps.pyside.moegirl_tagger_gui_styles import build_window_qss
 from apps.pyside.moegirl_tagger_gui_workers import CorrelationProfileRebuildWorker
 from apps.pyside.moegirl_tagger_gui_widgets import DragBar, PreviewCanvas
+from core.version import APP_VERSION
+
+
+PROJECT_GITHUB_URL = "https://github.com/misakajolno/MoeGirlTagger"
 
 
 class MoeGirlTaggerWindowUiMixin:
@@ -478,6 +482,20 @@ class MoeGirlTaggerWindowUiMixin:
         layout.addWidget(self.toast_label, 0, Qt.AlignRight)
         layout.addStretch(1)
 
+        footer_layout = QHBoxLayout()
+        footer_layout.setContentsMargins(0, 0, 0, 0)
+        footer_layout.setSpacing(8)
+        footer_layout.addStretch(1)
+        self.settings_github_link_button = QPushButton()
+        self.settings_github_link_button.setObjectName("SettingsLinkButton")
+        self.settings_github_link_button.setCursor(Qt.PointingHandCursor)
+        self.settings_github_link_button.clicked.connect(self._open_project_github)
+        self.settings_version_label = QLabel()
+        self.settings_version_label.setObjectName("SettingsVersionLabel")
+        footer_layout.addWidget(self.settings_github_link_button, 0, Qt.AlignRight)
+        footer_layout.addWidget(self.settings_version_label, 0, Qt.AlignRight)
+        layout.addLayout(footer_layout)
+
         return page
 
     def _switch_right_page(self, page_index: int) -> None:
@@ -535,6 +553,10 @@ class MoeGirlTaggerWindowUiMixin:
         self.threshold_values = saved_values
         self._show_toast(self._tr("settings_saved_toast"))
         self._set_status(self._tr("settings_saved_status"))
+
+    def _open_project_github(self) -> None:
+        if not QDesktopServices.openUrl(QUrl(PROJECT_GITHUB_URL)):
+            self._set_status(self._tr("status_open_project_github_failed"), is_error=True)
 
     def _is_correlation_profile_rebuild_running(self) -> bool:
         thread = getattr(self, "correlation_rebuild_thread", None)
@@ -661,6 +683,8 @@ class MoeGirlTaggerWindowUiMixin:
         self.save_settings_button.setText(self._tr("settings_save"))
         self.rebuild_correlation_profiles_button.setText(self._tr("settings_rebuild_correlation_profiles"))
         self.rebuild_correlation_profiles_hint_label.setText(self._tr("settings_rebuild_correlation_profiles_hint"))
+        self.settings_github_link_button.setText(self._tr("settings_project_github"))
+        self.settings_version_label.setText(self._tr("settings_version_text", version=APP_VERSION))
 
         for key, label in self.threshold_name_labels.items():
             label.setText(self._tr(THRESHOLD_LABEL_KEYS[key]))

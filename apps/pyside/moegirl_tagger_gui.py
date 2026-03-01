@@ -21,11 +21,13 @@ _ensure_repo_root_in_syspath()
 
 from apps.pyside.moegirl_tagger_gui_common import load_app_icon
 from apps.pyside.moegirl_tagger_gui_window import MoeGirlTaggerWindow
+from core.version import APP_VERSION
 
 def main() -> None:
     """Run GUI application."""
     app = QApplication(sys.argv)
     app.setApplicationName("MoeGirlTagger")
+    app.setApplicationVersion(APP_VERSION)
     icon = load_app_icon()
     if icon is not None:
         app.setWindowIcon(icon)

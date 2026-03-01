@@ -7,6 +7,7 @@ import datetime as dt
 from pathlib import Path
 
 try:
+    from core.version import APP_VERSION
     from scripts.auto_tag_images_parts.constants import *  # noqa: F401,F403
     from scripts.auto_tag_images_parts.tagger import *  # noqa: F401,F403
     from scripts.auto_tag_images_parts.character_matching import *  # noqa: F401,F403
@@ -20,6 +21,7 @@ except ModuleNotFoundError:
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from core.version import APP_VERSION
     from scripts.auto_tag_images_parts.constants import *  # noqa: F401,F403
     from scripts.auto_tag_images_parts.tagger import *  # noqa: F401,F403
     from scripts.auto_tag_images_parts.character_matching import *  # noqa: F401,F403
@@ -33,6 +35,7 @@ except ModuleNotFoundError:
 def parse_args() -> argparse.Namespace:
     """Parse CLI args."""
     parser = argparse.ArgumentParser(description="Auto-recognize image tags and write metadata.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {APP_VERSION}")
     parser.add_argument("--image-dir", default=str(DEFAULT_IMAGE_DIR), help="Image directory.")
     parser.add_argument("--queue-output", default=str(DEFAULT_OUTPUT_QUEUE), help="Output queue JSONL.")
     parser.add_argument("--taxonomy", default=str(DEFAULT_TAXONOMY), help="Feature taxonomy JSON.")

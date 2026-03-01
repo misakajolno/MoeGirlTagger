@@ -8,10 +8,11 @@ from fastapi import FastAPI, HTTPException
 
 from apps.api.schemas import RunTaggingRequest, RunTaggingResponse
 from core.moegirl_tagger import AutoTagOptions, run_auto_tag_pipeline
+from core.version import APP_VERSION
 
 app = FastAPI(
     title="MoeGirl Tagger API",
-    version="0.1.0",
+    version=APP_VERSION,
     description="Docker-ready API for anime image tagging pipeline.",
 )
 
