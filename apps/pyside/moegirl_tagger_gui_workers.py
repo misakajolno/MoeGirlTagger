@@ -140,6 +140,24 @@ class ClearTagsWorker(QObject):
         self.finished.emit(True, "", [normalize_path_key(path) for path in self._image_paths])
 
 
+class CallableWorker(QObject):
+    """Run one callable job in a background thread."""
+
+    finished = Signal(bool, str, object)
+
+    def __init__(self, job) -> None:
+        super().__init__()
+        self._job = job
+
+    def run(self) -> None:
+        try:
+            result = self._job()
+        except Exception as error:
+            self.finished.emit(False, str(error), None)
+            return
+        self.finished.emit(True, "", result)
+
+
 class CharacterSearchWorker(QObject):
     """Run online character search and avatar prefetch in background thread."""
 

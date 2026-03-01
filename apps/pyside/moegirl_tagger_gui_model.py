@@ -25,6 +25,7 @@ class ImageListModel(QAbstractListModel):
     ROLE_PATH_KEY = Qt.UserRole + 1
     ROLE_FEATURE_TEXT = Qt.UserRole + 2
     ROLE_HAS_EXISTING_TAGS = Qt.UserRole + 3
+    ROLE_ITEM_LOCKED = Qt.UserRole + 4
 
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize model.
@@ -35,6 +36,7 @@ class ImageListModel(QAbstractListModel):
         super().__init__(parent)
         self._items: list[ImageListEntry] = []
         self._path_key_to_row: dict[str, int] = {}
+        self._locked_path_keys: set[str] = set()
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         """Return row count.
@@ -75,7 +77,20 @@ class ImageListModel(QAbstractListModel):
             return item.feature_text
         if role == self.ROLE_HAS_EXISTING_TAGS:
             return item.has_existing_tags
+        if role == self.ROLE_ITEM_LOCKED:
+            return item.path_key in self._locked_path_keys
         return None
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+        if not index.isValid():
+            return Qt.NoItemFlags
+        row = index.row()
+        if row < 0 or row >= len(self._items):
+            return Qt.NoItemFlags
+        path_key = self._items[row].path_key
+        if path_key in self._locked_path_keys:
+            return Qt.NoItemFlags
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def set_images(self, images: list[Path]) -> None:
         """Replace all rows with image list.
@@ -95,6 +110,7 @@ class ImageListModel(QAbstractListModel):
             for path in images
         ]
         self._path_key_to_row = {item.path_key: index for index, item in enumerate(self._items)}
+        self._locked_path_keys.clear()
         self.endResetModel()
 
     def set_feature_by_key(self, path_key: str, feature_text: str) -> None:
@@ -156,6 +172,7 @@ class ImageListModel(QAbstractListModel):
         self.beginRemoveRows(QModelIndex(), row, row)
         removed = self._items.pop(row)
         self.endRemoveRows()
+        self._locked_path_keys.discard(removed.path_key)
         self._path_key_to_row = {item.path_key: index for index, item in enumerate(self._items)}
         return removed.path_key
 
@@ -165,7 +182,35 @@ class ImageListModel(QAbstractListModel):
         self.beginResetModel()
         self._items = [item for item in self._items if item.path_key not in keys]
         self._path_key_to_row = {item.path_key: index for index, item in enumerate(self._items)}
+        self._locked_path_keys = {key for key in self._locked_path_keys if key in self._path_key_to_row}
         self.endResetModel()
+
+    def set_locked_by_keys(self, keys: set[str], locked: bool) -> None:
+        if not keys:
+            return
+        target_keys = {str(key).strip() for key in keys if str(key).strip()}
+        if not target_keys:
+            return
+
+        changed_rows: list[int] = []
+        if locked:
+            for key in target_keys:
+                row = self._path_key_to_row.get(key)
+                if row is None or key in self._locked_path_keys:
+                    continue
+                self._locked_path_keys.add(key)
+                changed_rows.append(row)
+        else:
+            for key in target_keys:
+                row = self._path_key_to_row.get(key)
+                if row is None or key not in self._locked_path_keys:
+                    continue
+                self._locked_path_keys.discard(key)
+                changed_rows.append(row)
+
+        for row in changed_rows:
+            index = self.index(row, 0)
+            self.dataChanged.emit(index, index, [self.ROLE_ITEM_LOCKED])
 
     def image_paths(self) -> list[Path]:
         """Return all image paths in current model.

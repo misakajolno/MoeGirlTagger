@@ -15,6 +15,8 @@ ROW_MARGIN_X = 4
 ROW_MARGIN_Y = 3
 DELETE_BUTTON_SIZE = 24
 DELETE_BUTTON_MARGIN = 10
+TAG_EDIT_BUTTON_SIZE = 24
+TAG_EDIT_BUTTON_MARGIN = 10
 SHOW_DELETE_HITBOX = False
 LAST_OPEN_DIR_SETTING_KEY = "ui/last_open_dir"
 LANGUAGE_SETTING_KEY = "ui/language"
@@ -24,6 +26,7 @@ SPIN_UP_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "spin
 SPIN_DOWN_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "spin_down.svg"
 WINDOW_CLOSE_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "window_close.svg"
 LIST_DELETE_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "list_delete.svg"
+TAG_EDITOR_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "tags.svg"
 FEATURE_PREVIEW_LIMIT = 8
 FEATURE_FORCE_VISIBLE = ("barefoot",)
 THRESHOLD_MIN_VALUE = 0.0
@@ -72,6 +75,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "btn_choose_folder": "选择文件夹",
         "btn_choose_images": "选择图片（多选）",
         "btn_remove_all": "删除全部",
+        "btn_edit_tags": "编辑标签",
         "btn_clear_tags": "清除标签",
         "btn_remove_tagged": "删除包含标签",
         "btn_start_analysis": "开始分析",
@@ -231,6 +235,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "threshold_copyright": "作品阈值",
         "settings_spin_hint": "最小值 {min} / 最大值 {max}",
         "feature_edit_tags": "编辑标签",
+        "btn_tag_editor_tooltip": "编辑当前图片标签",
+        "tag_editor_dialog_title": "标签编辑",
+        "tag_editor_left_title": "特征与角色",
+        "tag_editor_right_title": "已选择标签",
+        "tag_editor_feature_group_prefix": "特征 / ",
+        "tag_editor_character_group_prefix": "角色 / ",
+        "tag_editor_rules": "规则：双击或拖拽可在左右区域移动标签；左侧灰色项表示已选择，可在右侧双击或拖回左侧移除。",
+        "tag_editor_apply": "应用",
+        "tag_editor_cancel": "取消",
+        "status_tag_editor_no_selection": "请先在列表中选择一张图片后再编辑标签。",
+        "status_tag_editor_saved": "标签已更新（共 {count} 项）。",
+        "status_tag_editor_multi_required": "请先在列表中多选至少两张图片后再编辑标签。",
+        "status_tag_editor_batch_no_changes": "未选择要追加的标签，未执行批量编辑。",
+        "status_tag_editor_batch_saved": "已为 {count} 张图片追加标签（新增特征 {feature_count}，新增角色 {character_count}）。",
         "worker_log_running_command": "运行命令：{command}",
         "worker_status_script_failed": "脚本执行失败（退出码 {code}）",
         "worker_status_exception": "执行异常：{error}",
@@ -243,6 +261,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "btn_choose_folder": "Select Folder",
         "btn_choose_images": "Select Images",
         "btn_remove_all": "Remove All",
+        "btn_edit_tags": "Edit Tags",
         "btn_clear_tags": "Clear Tags",
         "btn_remove_tagged": "Remove Tagged",
         "btn_start_analysis": "Start Analysis",
@@ -402,6 +421,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "threshold_copyright": "Copyright Threshold",
         "settings_spin_hint": "Min {min} / Max {max}",
         "feature_edit_tags": "Edit Tags",
+        "btn_tag_editor_tooltip": "Edit tags for current image",
+        "tag_editor_dialog_title": "Tag Editor",
+        "tag_editor_left_title": "Features and Characters",
+        "tag_editor_right_title": "Selected Tags",
+        "tag_editor_feature_group_prefix": "Feature / ",
+        "tag_editor_character_group_prefix": "Character / ",
+        "tag_editor_rules": "Rules: double-click or drag tags between both sides; grayed items on the left are already selected.",
+        "tag_editor_apply": "Apply",
+        "tag_editor_cancel": "Cancel",
+        "status_tag_editor_no_selection": "Select an image from the list before editing tags.",
+        "status_tag_editor_saved": "Tags updated ({count} total).",
+        "status_tag_editor_multi_required": "Select at least two images before batch editing tags.",
+        "status_tag_editor_batch_no_changes": "No tags selected. Batch edit was not applied.",
+        "status_tag_editor_batch_saved": "Added tags to {count} images (features {feature_count}, characters {character_count}).",
         "worker_log_running_command": "Running command: {command}",
         "worker_status_script_failed": "Script execution failed (exit code {code})",
         "worker_status_exception": "Execution error: {error}",
@@ -864,6 +897,20 @@ def compute_delete_hit_rect(item_rect: QRect) -> QRect:
     # UX tuning: shift hit area slightly to the left and keep right side tight.
     return delete_rect.adjusted(-18, -10, 2, 10)
 
+
+def compute_tag_edit_button_rect(item_rect: QRect) -> QRect:
+    """Compute tag-edit button rect in item coordinates."""
+    row_rect = compute_row_rect(item_rect)
+    x = row_rect.right() - TAG_EDIT_BUTTON_MARGIN - TAG_EDIT_BUTTON_SIZE
+    y = row_rect.bottom() - TAG_EDIT_BUTTON_MARGIN - TAG_EDIT_BUTTON_SIZE
+    return QRect(x, y, TAG_EDIT_BUTTON_SIZE, TAG_EDIT_BUTTON_SIZE)
+
+
+def compute_tag_edit_hit_rect(item_rect: QRect) -> QRect:
+    """Compute clickable hit rect for tag-edit action."""
+    tag_rect = compute_tag_edit_button_rect(item_rect)
+    return tag_rect.adjusted(-18, -10, 2, 10)
+
 def normalize_path_key(path: Path) -> str:
     """Normalize path key for cross-platform matching.
 
@@ -914,6 +961,13 @@ def load_list_delete_icon() -> QIcon | None:
     if not LIST_DELETE_ICON_PATH.exists():
         return None
     return QIcon(str(LIST_DELETE_ICON_PATH))
+
+
+def load_tag_editor_icon() -> QIcon | None:
+    """Load image-list tag-editor button icon from local assets."""
+    if not TAG_EDITOR_ICON_PATH.exists():
+        return None
+    return QIcon(str(TAG_EDITOR_ICON_PATH))
 
 
 def load_taxonomy_name_map(

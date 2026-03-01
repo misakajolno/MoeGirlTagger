@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 import shutil
@@ -9,7 +10,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import QModelIndex, QThread
+from PySide6.QtCore import QModelIndex, QItemSelectionModel, QThread
 from PySide6.QtWidgets import QApplication, QDialog, QFileDialog
 
 from apps.pyside.moegirl_tagger_gui_common import (
@@ -22,8 +23,13 @@ from apps.pyside.moegirl_tagger_gui_common import (
 )
 from apps.pyside.moegirl_tagger_gui_model import ImageListModel
 from apps.pyside.moegirl_tagger_gui_worker import AnalysisWorker
-from apps.pyside.moegirl_tagger_gui_workers import ClearTagsWorker
+from apps.pyside.moegirl_tagger_gui_workers import CallableWorker, ClearTagsWorker
 from apps.pyside.moegirl_tagger_gui_dialogs import ClearTagsConfirmDialog
+from apps.pyside.moegirl_tagger_gui_tag_editor_dialog import (
+    TagEditorDialog,
+    pick_localized_alias,
+    pick_localized_name,
+)
 
 
 class MoeGirlTaggerWindowAnalysisMixin:
@@ -108,13 +114,41 @@ class MoeGirlTaggerWindowAnalysisMixin:
     def _update_remove_buttons_visibility(self) -> None:
         has_items = bool(self.image_paths_by_key)
         self.remove_all_button.setVisible(has_items)
+        self.edit_tags_button.setVisible(has_items)
         self.clear_tags_button.setVisible(has_items)
         self.remove_tagged_button.setVisible(has_items)
+        self._update_batch_edit_button_state()
+
+    def _selected_image_path_keys(self) -> list[str]:
+        selection_model = self.list_widget.selectionModel()
+        if selection_model is None:
+            return []
+        keys: list[str] = []
+        seen: set[str] = set()
+        for index in selection_model.selectedRows():
+            key = str(index.data(ImageListModel.ROLE_PATH_KEY) or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            keys.append(key)
+        return keys
+
+    def _update_batch_edit_button_state(self) -> None:
+        if not hasattr(self, "edit_tags_button"):
+            return
+        has_items = bool(self.image_paths_by_key)
+        selected_count = len(self._selected_image_path_keys())
+        enabled = has_items and selected_count >= 2 and (not self._is_busy())
+        self.edit_tags_button.setEnabled(enabled)
+
+    def _on_analysis_selection_changed(self, *_args) -> None:
+        self._update_batch_edit_button_state()
 
     def _is_busy(self) -> bool:
         analysis_running = self.worker_thread is not None and self.worker_thread.isRunning()
         clear_running = self.clear_thread is not None and self.clear_thread.isRunning()
-        return analysis_running or clear_running
+        tag_apply_running = self.tag_apply_thread is not None and self.tag_apply_thread.isRunning()
+        return analysis_running or clear_running or tag_apply_running
 
     def _remove_all_images(self) -> None:
         if self._is_busy():
@@ -196,6 +230,7 @@ class MoeGirlTaggerWindowAnalysisMixin:
         self.folder_button.setEnabled(False)
         self.images_button.setEnabled(False)
         self.remove_all_button.setEnabled(False)
+        self.edit_tags_button.setEnabled(False)
         self.clear_tags_button.setEnabled(False)
         self.remove_tagged_button.setEnabled(False)
         self.start_button.setEnabled(False)
@@ -227,8 +262,85 @@ class MoeGirlTaggerWindowAnalysisMixin:
         self.folder_button.setEnabled(True)
         self.images_button.setEnabled(True)
         self.remove_all_button.setEnabled(True)
-        self.clear_tags_button.setEnabled(True)
-        self.remove_tagged_button.setEnabled(True)
+        self.clear_tags_button.setEnabled(bool(self.image_paths_by_key))
+        self.remove_tagged_button.setEnabled(bool(self.image_paths_by_key))
+        self._update_batch_edit_button_state()
+        self.start_button.setEnabled(True)
+
+    def _lock_image_items(self, keys: set[str]) -> None:
+        if not keys:
+            return
+        self.image_model.set_locked_by_keys(keys, True)
+        selection_model = self.list_widget.selectionModel()
+        if selection_model is None:
+            return
+        for key in keys:
+            row = self.image_model.row_for_key(key)
+            if row is None:
+                continue
+            index = self.image_model.index(row, 0)
+            selection_model.select(index, QItemSelectionModel.Deselect)
+
+    def _unlock_image_items(self, keys: set[str]) -> None:
+        if not keys:
+            return
+        self.image_model.set_locked_by_keys(keys, False)
+
+    def _start_tag_apply_job(self, *, locked_keys: set[str], job, success_handler) -> None:
+        if self._is_busy():
+            self._set_status(self._tr("status_busy_modify_list"), is_error=True)
+            return
+
+        self.tag_apply_locked_keys = set(locked_keys)
+        self._lock_image_items(self.tag_apply_locked_keys)
+        self.folder_button.setEnabled(False)
+        self.images_button.setEnabled(False)
+        self.remove_all_button.setEnabled(False)
+        self.edit_tags_button.setEnabled(False)
+        self.clear_tags_button.setEnabled(False)
+        self.remove_tagged_button.setEnabled(False)
+        self.start_button.setEnabled(False)
+
+        self.tag_apply_thread = QThread(self)
+        self.tag_apply_worker = CallableWorker(job)
+        self.tag_apply_worker.moveToThread(self.tag_apply_thread)
+
+        self.tag_apply_thread.started.connect(self.tag_apply_worker.run)
+        self.tag_apply_worker.finished.connect(
+            lambda ok, message, payload: self._on_tag_apply_finished(
+                ok=ok,
+                message=message,
+                payload=payload,
+                success_handler=success_handler,
+            )
+        )
+        self.tag_apply_worker.finished.connect(self.tag_apply_thread.quit)
+        self.tag_apply_worker.finished.connect(self.tag_apply_worker.deleteLater)
+        self.tag_apply_thread.finished.connect(self.tag_apply_thread.deleteLater)
+        self.tag_apply_thread.finished.connect(self._on_tag_apply_thread_finished)
+        self.tag_apply_thread.start()
+
+    def _on_tag_apply_finished(self, *, ok: bool, message: str, payload: object, success_handler) -> None:
+        if not ok:
+            detail = str(message or "").strip() or "unknown error"
+            self._set_status(detail, is_error=True)
+            return
+        try:
+            success_handler(payload)
+        except Exception as error:
+            self._set_status(str(error).strip() or "unknown error", is_error=True)
+
+    def _on_tag_apply_thread_finished(self) -> None:
+        self.tag_apply_thread = None
+        self.tag_apply_worker = None
+        self._unlock_image_items(set(self.tag_apply_locked_keys))
+        self.tag_apply_locked_keys = set()
+        self.folder_button.setEnabled(True)
+        self.images_button.setEnabled(True)
+        self.remove_all_button.setEnabled(True)
+        self.clear_tags_button.setEnabled(bool(self.image_paths_by_key))
+        self.remove_tagged_button.setEnabled(bool(self.image_paths_by_key))
+        self._update_batch_edit_button_state()
         self.start_button.setEnabled(True)
 
     def _delete_image_by_key(self, path_key: str) -> None:
@@ -307,6 +419,9 @@ class MoeGirlTaggerWindowAnalysisMixin:
         if self.clear_thread is not None:
             self._set_status(self._tr("status_clearing_tags_busy"), is_error=True)
             return
+        if self.tag_apply_thread is not None:
+            self._set_status(self._tr("status_busy_modify_list"), is_error=True)
+            return
         if self.worker_thread is not None:
             self._set_status(self._tr("status_stopping_analysis"))
             if self.worker is not None:
@@ -320,6 +435,7 @@ class MoeGirlTaggerWindowAnalysisMixin:
         self.folder_button.setEnabled(False)
         self.images_button.setEnabled(False)
         self.remove_all_button.setEnabled(False)
+        self.edit_tags_button.setEnabled(False)
         self.clear_tags_button.setEnabled(False)
         self.remove_tagged_button.setEnabled(False)
         self.start_button.setText(self._tr("btn_stop_analysis"))
@@ -362,8 +478,9 @@ class MoeGirlTaggerWindowAnalysisMixin:
         self.folder_button.setEnabled(True)
         self.images_button.setEnabled(True)
         self.remove_all_button.setEnabled(True)
-        self.clear_tags_button.setEnabled(True)
-        self.remove_tagged_button.setEnabled(True)
+        self.clear_tags_button.setEnabled(bool(self.image_paths_by_key))
+        self.remove_tagged_button.setEnabled(bool(self.image_paths_by_key))
+        self._update_batch_edit_button_state()
         self.start_button.setText(self._tr("btn_start_analysis"))
         self.start_button.setStyleSheet("")
         self.start_button.setEnabled(True)
@@ -662,24 +779,45 @@ class MoeGirlTaggerWindowAnalysisMixin:
         Returns:
             Deduped tag list.
         """
-        raw_values: list[str] = []
-        for field in ["Subject", "XPKeywords", "Keywords", "XMP-dc:Subject"]:
-            value = payload.get(field)
-            if value is None:
-                continue
-            if isinstance(value, list):
-                raw_values.extend([str(item).strip() for item in value if str(item).strip()])
-                continue
-            raw_values.append(str(value).strip())
+        def collect_values(fields: list[str]) -> list[str]:
+            values: list[str] = []
+            for field in fields:
+                value = payload.get(field)
+                if value is None:
+                    continue
+                if isinstance(value, list):
+                    values.extend([str(item).strip() for item in value if str(item).strip()])
+                    continue
+                values.append(str(value).strip())
+            return values
 
-        tags: list[str] = []
-        seen: set[str] = set()
-        for raw in raw_values:
-            for token in self._split_tags_text(raw):
-                if token and token not in seen:
-                    tags.append(token)
-                    seen.add(token)
-        return tags
+        def normalize_tokens(values: list[str]) -> list[str]:
+            result: list[str] = []
+            seen: set[str] = set()
+            for raw in values:
+                for token in self._split_tags_text(raw):
+                    text = str(token or "").strip()
+                    if not text or self._is_malformed_metadata_tag(text):
+                        continue
+                    if text in seen:
+                        continue
+                    seen.add(text)
+                    result.append(text)
+            return result
+
+        primary_tags = normalize_tokens(collect_values(["Subject", "Keywords", "XMP-dc:Subject"]))
+        if primary_tags:
+            return primary_tags
+        return normalize_tokens(collect_values(["XPKeywords"]))
+
+    def _is_malformed_metadata_tag(self, text: str) -> bool:
+        token = str(text or "").strip()
+        if not token:
+            return True
+        # Skip placeholder-like mojibake tokens, e.g. "??" introduced by bad XPKeywords decoding.
+        if all(ch in {"?", "？", "�"} for ch in token):
+            return True
+        return False
 
     def _split_tags_text(self, text: str) -> list[str]:
         """Split raw metadata tag string into tokens.
@@ -709,6 +847,828 @@ class MoeGirlTaggerWindowAnalysisMixin:
         if not tags:
             return self._tr("feature_edit_tags")
         return self._tr("section_tags") + "、".join(tags)
+
+    def _open_tag_editor_dialog(self, path_key: str | None = None) -> None:
+        if self._is_busy():
+            self._set_status(self._tr("status_busy_modify_list"), is_error=True)
+            return
+
+        selected_path_key = str(path_key or "").strip()
+        if selected_path_key:
+            row = self.image_model.row_for_key(selected_path_key)
+            if row is not None:
+                self.list_widget.setCurrentIndex(self.image_model.index(row, 0))
+
+        current_index = self.list_widget.currentIndex()
+        if not current_index.isValid() and selected_path_key:
+            row = self.image_model.row_for_key(selected_path_key)
+            if row is not None:
+                current_index = self.image_model.index(row, 0)
+        if not current_index.isValid():
+            self._set_status(self._tr("status_tag_editor_no_selection"), is_error=True)
+            return
+
+        path_key = str(current_index.data(ImageListModel.ROLE_PATH_KEY) or "").strip()
+        image_path = self.image_paths_by_key.get(path_key)
+        if image_path is None:
+            self._set_status(self._tr("status_tag_editor_no_selection"), is_error=True)
+            return
+
+        feature_groups = self._build_tag_editor_feature_groups()
+        feature_token_set = self._collect_feature_token_ids(feature_groups)
+        feature_alias_to_id = self._collect_feature_alias_to_id(feature_groups)
+        character_groups, name_to_character_id, character_id_to_store_value = self._build_tag_editor_character_groups()
+        records = self._load_queue_records([image_path])
+        record = records.get(path_key, {})
+        existing_tags_by_key = self._load_existing_image_tags([image_path])
+        existing_tags = existing_tags_by_key.get(path_key, [])
+
+        initial_feature_tags = self._merge_dedup_lists(
+            self._resolve_feature_tags_from_existing(
+                self._dedupe_non_empty(record.get("feature_tags", [])),
+                feature_token_set,
+                feature_alias_to_id,
+            ),
+            self._resolve_feature_tags_from_existing(
+                existing_tags,
+                feature_token_set,
+                feature_alias_to_id,
+            ),
+        )
+        initial_character_ids = self._resolve_initial_character_ids(
+            self._merge_dedup_lists(
+                self._dedupe_non_empty(record.get("characters", [])),
+                self._resolve_character_names_from_existing(existing_tags, name_to_character_id),
+            ),
+            name_to_character_id,
+        )
+
+        dialog = TagEditorDialog(
+            parent=self,
+            title=self._tr("tag_editor_dialog_title"),
+            left_title=self._tr("tag_editor_left_title"),
+            right_title=self._tr("tag_editor_right_title"),
+            rules_text=self._tr("tag_editor_rules"),
+            apply_text=self._tr("tag_editor_apply"),
+            cancel_text=self._tr("tag_editor_cancel"),
+            feature_groups=feature_groups,
+            character_groups=character_groups,
+            initial_feature_tags=initial_feature_tags,
+            initial_characters=initial_character_ids,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        selected_features = dialog.selected_feature_tags()
+        selected_character_ids = dialog.selected_characters()
+        selected_characters: list[str] = []
+        for character_id in selected_character_ids:
+            normalized_id = str(character_id).strip()
+            if not normalized_id:
+                continue
+            store_value = character_id_to_store_value.get(normalized_id, normalized_id)
+            if store_value not in selected_characters:
+                selected_characters.append(store_value)
+
+        selected_features = list(selected_features)
+        selected_characters = list(selected_characters)
+        selected_count = len(selected_features) + len(selected_characters)
+
+        def run_single_apply_job() -> dict:
+            metadata_feature_tags = self._feature_ids_to_metadata_tags(selected_features)
+            metadata_tags = self._merge_dedup_lists(metadata_feature_tags, selected_characters)
+            metadata_write_error: str | None = None
+            exiftool = self._find_exiftool_binary()
+            if exiftool is not None and image_path.exists():
+                try:
+                    self._write_image_metadata_tags(exiftool, {image_path: metadata_tags})
+                except Exception as error:
+                    metadata_write_error = str(error).strip() or "unknown error"
+
+            updated_record = self._save_queue_record_for_image(
+                image_path=image_path,
+                feature_tags=selected_features,
+                characters=selected_characters,
+            )
+            return {
+                "path_key": path_key,
+                "updated_record": updated_record,
+                "selected_count": selected_count,
+                "metadata_write_error": metadata_write_error,
+            }
+
+        def on_single_apply_success(payload: object) -> None:
+            if not isinstance(payload, dict):
+                raise RuntimeError("invalid tag-apply payload")
+            result_key = str(payload.get("path_key", "")).strip() or path_key
+            updated_record = payload.get("updated_record", {})
+            if not isinstance(updated_record, dict):
+                updated_record = {}
+            has_tags = any(str(value).strip() for value in updated_record.get("characters", [])) or any(
+                str(value).strip() for value in updated_record.get("feature_tags", [])
+            )
+            self.image_model.set_existing_tags_by_key(result_key, self._format_feature_text(updated_record), has_tags)
+
+            metadata_write_error = str(payload.get("metadata_write_error", "") or "").strip()
+            if metadata_write_error:
+                self._set_status(
+                    self._tr("status_tag_editor_batch_write_failed", error=metadata_write_error),
+                    is_error=True,
+                )
+                return
+            count_value = int(payload.get("selected_count", selected_count))
+            self._set_status(self._tr("status_tag_editor_saved", count=count_value))
+
+        self._start_tag_apply_job(
+            locked_keys={path_key},
+            job=run_single_apply_job,
+            success_handler=on_single_apply_success,
+        )
+
+    def _open_batch_tag_editor_dialog(self) -> None:
+        if self._is_busy():
+            self._set_status(self._tr("status_busy_modify_list"), is_error=True)
+            return
+
+        selected_keys = self._selected_image_path_keys()
+        if len(selected_keys) < 2:
+            self._set_status(self._tr("status_tag_editor_multi_required"), is_error=True)
+            self._update_batch_edit_button_state()
+            return
+
+        selected_items: list[tuple[str, Path]] = []
+        for key in selected_keys:
+            image_path = self.image_paths_by_key.get(key)
+            if image_path is not None:
+                selected_items.append((key, image_path))
+        selected_paths = [path for _, path in selected_items]
+        if len(selected_paths) < 2:
+            self._set_status(self._tr("status_tag_editor_multi_required"), is_error=True)
+            self._update_batch_edit_button_state()
+            return
+
+        feature_groups = self._build_tag_editor_feature_groups()
+        character_groups, _name_to_character_id, character_id_to_store_value = self._build_tag_editor_character_groups()
+
+        dialog = TagEditorDialog(
+            parent=self,
+            title=self._tr("tag_editor_dialog_title"),
+            left_title=self._tr("tag_editor_left_title"),
+            right_title=self._tr("tag_editor_right_title"),
+            rules_text=self._tr("tag_editor_rules"),
+            apply_text=self._tr("tag_editor_apply"),
+            cancel_text=self._tr("tag_editor_cancel"),
+            feature_groups=feature_groups,
+            character_groups=character_groups,
+            initial_feature_tags=[],
+            initial_characters=[],
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        selected_features = dialog.selected_feature_tags()
+        selected_character_ids = dialog.selected_characters()
+        selected_characters: list[str] = []
+        for character_id in selected_character_ids:
+            normalized_id = str(character_id).strip()
+            if not normalized_id:
+                continue
+            store_value = character_id_to_store_value.get(normalized_id, normalized_id)
+            if store_value not in selected_characters:
+                selected_characters.append(store_value)
+
+        if not selected_features and not selected_characters:
+            self._set_status(self._tr("status_tag_editor_batch_no_changes"))
+            return
+
+        exiftool = self._find_exiftool_binary()
+        if exiftool is None:
+            self._set_status(self._tr("status_tag_editor_batch_missing_exiftool"), is_error=True)
+            return
+        selected_features = list(selected_features)
+        selected_characters = list(selected_characters)
+        selected_items = [(str(key).strip(), path) for key, path in selected_items if str(key).strip()]
+        selected_paths = [path for _, path in selected_items]
+        locked_keys = {key for key, _ in selected_items}
+
+        def run_batch_apply_job() -> dict:
+            existing_tags_by_key = self._load_existing_image_tags(selected_paths)
+            metadata_feature_tags = self._feature_ids_to_metadata_tags(selected_features)
+            metadata_append_tokens = self._merge_dedup_lists(metadata_feature_tags, selected_characters)
+
+            image_to_tags: dict[Path, list[str]] = {}
+            for key, image_path in selected_items:
+                existing_tags = existing_tags_by_key.get(key, [])
+                image_to_tags[image_path] = self._merge_dedup_lists(existing_tags, metadata_append_tokens)
+
+            try:
+                self._write_image_metadata_tags(exiftool, image_to_tags)
+            except Exception as error:
+                raise RuntimeError(
+                    self._tr("status_tag_editor_batch_write_failed", error=str(error).strip() or "unknown error")
+                ) from error
+
+            records_by_key = self._append_queue_tags_for_images(
+                image_paths=selected_paths,
+                feature_tags=selected_features,
+                characters=selected_characters,
+            )
+            return {
+                "selected_items": selected_items,
+                "image_to_tags": image_to_tags,
+                "records_by_key": records_by_key,
+                "count": len(selected_paths),
+                "feature_count": len(selected_features),
+                "character_count": len(selected_characters),
+            }
+
+        def on_batch_apply_success(payload: object) -> None:
+            if not isinstance(payload, dict):
+                raise RuntimeError("invalid tag-apply payload")
+            payload_items = payload.get("selected_items", [])
+            image_to_tags = payload.get("image_to_tags", {})
+            records_by_key = payload.get("records_by_key", {})
+            if not isinstance(payload_items, list) or not isinstance(image_to_tags, dict) or not isinstance(
+                records_by_key, dict
+            ):
+                raise RuntimeError("invalid tag-apply payload")
+
+            for key, image_path in payload_items:
+                normalized_key = str(key).strip()
+                if not normalized_key:
+                    continue
+                merged_tags = self._dedupe_non_empty(image_to_tags.get(image_path, []))
+                if merged_tags:
+                    self.image_model.set_existing_tags_by_key(normalized_key, self._format_edit_tags_text(merged_tags), True)
+                    continue
+                record = records_by_key.get(normalized_key)
+                if not isinstance(record, dict):
+                    continue
+                has_tags = any(str(value).strip() for value in record.get("characters", [])) or any(
+                    str(value).strip() for value in record.get("feature_tags", [])
+                )
+                self.image_model.set_existing_tags_by_key(normalized_key, self._format_feature_text(record), has_tags)
+
+            self._set_status(
+                self._tr(
+                    "status_tag_editor_batch_saved",
+                    count=int(payload.get("count", len(selected_paths))),
+                    feature_count=int(payload.get("feature_count", len(selected_features))),
+                    character_count=int(payload.get("character_count", len(selected_characters))),
+                )
+            )
+
+        self._start_tag_apply_job(
+            locked_keys=locked_keys,
+            job=run_batch_apply_job,
+            success_handler=on_batch_apply_success,
+        )
+
+    def _build_tag_editor_feature_groups(self) -> list[dict]:
+        taxonomy_path = (self.repo_root / "data/character_library/feature_taxonomy.json").resolve()
+        if not taxonomy_path.exists():
+            return []
+        try:
+            payload = json.loads(taxonomy_path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+
+        categories = payload.get("categories", []) if isinstance(payload, dict) else []
+        if not isinstance(categories, list):
+            return []
+
+        groups: list[dict] = []
+        for category in categories:
+            if not isinstance(category, dict):
+                continue
+            category_id = str(category.get("id", "")).strip()
+            category_name = pick_localized_name(
+                language_code=self.current_language,
+                name_i18n=self._collect_name_i18n(category),
+                fallback_text=category_id,
+            )
+            if not category_name:
+                category_name = category_id
+            tags_payload = category.get("tags", [])
+            if not isinstance(tags_payload, list):
+                continue
+
+            items: list[dict] = []
+            for tag in tags_payload:
+                if not isinstance(tag, dict):
+                    continue
+                tag_id = str(tag.get("id", "")).strip()
+                if not tag_id:
+                    continue
+                tag_name = pick_localized_name(
+                    language_code=self.current_language,
+                    name_i18n=self._collect_name_i18n(tag),
+                    fallback_text=tag_id,
+                )
+                items.append(
+                    {
+                        "value": tag_id,
+                        "display": tag_name,
+                        "store_value": tag_id,
+                        "aliases": self._build_feature_aliases(tag, tag_id, tag_name),
+                    }
+                )
+            if not items:
+                continue
+            groups.append(
+                {
+                    "group_key": f"feature:{category_id}",
+                    "group_name": f"{self._tr('tag_editor_feature_group_prefix')}{category_name}",
+                    "items": items,
+                }
+            )
+        return groups
+
+    def _build_tag_editor_character_groups(self) -> tuple[list[dict], dict[str, str], dict[str, str]]:
+        records = self.character_manager_service.list_characters()
+        groups_by_source: dict[str, dict] = {}
+        name_to_character_id: dict[str, str] = {}
+        character_id_to_store_value: dict[str, str] = {}
+
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            if not bool(record.get("enabled", True)):
+                continue
+            character_id = str(record.get("id", "")).strip()
+            if not character_id:
+                continue
+
+            source_fallback = str(record.get("source_title", "")).strip()
+            source_display = pick_localized_alias(
+                language_code=self.current_language,
+                aliases=record.get("source_aliases"),
+                fallback_text=source_fallback,
+            )
+            if not source_display:
+                source_display = source_fallback or "Unknown"
+
+            character_fallback = str(record.get("display_name", "")).strip()
+            character_display = pick_localized_alias(
+                language_code=self.current_language,
+                aliases=record.get("aliases"),
+                fallback_text=character_fallback,
+            )
+            if not character_display:
+                character_display = character_fallback or character_id
+
+            group_key = f"source:{source_display.casefold()}"
+            group = groups_by_source.get(group_key)
+            if group is None:
+                group = {
+                    "group_key": group_key,
+                    "group_name": f"{self._tr('tag_editor_character_group_prefix')}{source_display}",
+                    "source_name": source_display,
+                    "items": [],
+                }
+                groups_by_source[group_key] = group
+
+            group["items"].append(
+                {
+                    "value": character_id,
+                    "display": character_display,
+                    "store_value": character_id,
+                }
+            )
+
+            store_value = character_fallback or character_display
+            character_id_to_store_value[character_id] = store_value
+            self._index_character_name(name_to_character_id, character_id, store_value)
+            self._index_character_name(name_to_character_id, character_id, character_display)
+            aliases = record.get("aliases")
+            if isinstance(aliases, list):
+                for alias_entry in aliases:
+                    if not isinstance(alias_entry, dict):
+                        continue
+                    self._index_character_name(name_to_character_id, character_id, alias_entry.get("name"))
+
+        groups = sorted(groups_by_source.values(), key=lambda group: str(group.get("source_name", "")))
+        for group in groups:
+            items = group.get("items", [])
+            if not isinstance(items, list):
+                continue
+            group["items"] = sorted(items, key=lambda entry: str(entry.get("display", "")))
+        return groups, name_to_character_id, character_id_to_store_value
+
+    def _collect_name_i18n(self, payload: dict) -> dict[str, object]:
+        result: dict[str, object] = {}
+        source = payload.get("name_i18n")
+        if isinstance(source, dict):
+            result.update(source)
+
+        def put_once(language_code: str, value: object) -> None:
+            text = str(value or "").strip()
+            if not text:
+                return
+            if language_code not in result:
+                result[language_code] = text
+
+        put_once("zh-CN", payload.get("name_zh_cn"))
+        put_once("zh-CN", payload.get("name_zh"))
+        put_once("en-US", payload.get("name_en_us"))
+        put_once("en-US", payload.get("name_en"))
+        put_once("ja-JP", payload.get("name_ja_jp"))
+        put_once("ja-JP", payload.get("name_ja"))
+        put_once("ko-KR", payload.get("name_ko_kr"))
+        put_once("ko-KR", payload.get("name_ko"))
+        return result
+
+    def _index_character_name(self, name_to_character_id: dict[str, str], character_id: str, name: object) -> None:
+        text = str(name or "").strip()
+        if not text:
+            return
+        lowered = text.casefold()
+        if lowered and lowered not in name_to_character_id:
+            name_to_character_id[lowered] = character_id
+
+    def _resolve_initial_character_ids(self, characters: object, name_to_character_id: dict[str, str]) -> list[str]:
+        result: list[str] = []
+        values = characters if isinstance(characters, list) else []
+        for value in values:
+            key = str(value or "").strip().casefold()
+            if not key:
+                continue
+            character_id = name_to_character_id.get(key, "")
+            if character_id and character_id not in result:
+                result.append(character_id)
+        return result
+
+    def _collect_feature_token_ids(self, feature_groups: list[dict]) -> set[str]:
+        result: set[str] = set()
+        for group in feature_groups:
+            if not isinstance(group, dict):
+                continue
+            items = group.get("items")
+            if not isinstance(items, list):
+                continue
+            for entry in items:
+                if not isinstance(entry, dict):
+                    continue
+                value = str(entry.get("value", "")).strip()
+                if value:
+                    result.add(value)
+        return result
+
+    def _collect_feature_alias_to_id(self, feature_groups: list[dict]) -> dict[str, str]:
+        result: dict[str, str] = {}
+        for group in feature_groups:
+            if not isinstance(group, dict):
+                continue
+            items = group.get("items")
+            if not isinstance(items, list):
+                continue
+            for entry in items:
+                if not isinstance(entry, dict):
+                    continue
+                tag_id = str(entry.get("value", "")).strip()
+                if not tag_id:
+                    continue
+                for alias in entry.get("aliases", []):
+                    text = str(alias or "").strip()
+                    if not text:
+                        continue
+                    key = text.casefold()
+                    if key and key not in result:
+                        result[key] = tag_id
+        return result
+
+    def _resolve_feature_tags_from_existing(
+        self,
+        tags: list[str],
+        feature_token_set: set[str],
+        feature_alias_to_id: dict[str, str],
+    ) -> list[str]:
+        result: list[str] = []
+        if not feature_token_set:
+            return result
+        for token in tags:
+            raw = self._strip_known_tag_prefix(str(token or "").strip())
+            if not raw:
+                continue
+            if raw in feature_token_set and raw not in result:
+                result.append(raw)
+                continue
+            normalized = re.sub(r"[_\\-\\s]+", "_", raw).strip("_").lower()
+            if normalized in feature_token_set and normalized not in result:
+                result.append(normalized)
+                continue
+            alias_key = raw.casefold()
+            mapped = feature_alias_to_id.get(alias_key, "")
+            if mapped and mapped not in result:
+                result.append(mapped)
+                continue
+            mapped = feature_alias_to_id.get(normalized.casefold(), "")
+            if mapped and mapped not in result:
+                result.append(mapped)
+        return result
+
+    def _resolve_character_names_from_existing(
+        self,
+        tags: list[str],
+        name_to_character_id: dict[str, str],
+    ) -> list[str]:
+        result: list[str] = []
+        if not name_to_character_id:
+            return result
+        for token in tags:
+            raw = self._strip_known_tag_prefix(str(token or "").strip())
+            if not raw:
+                continue
+            key = raw.casefold()
+            if key in name_to_character_id and raw not in result:
+                result.append(raw)
+        return result
+
+    def _resolve_character_store_names_from_existing(
+        self,
+        tags: list[str],
+        name_to_character_id: dict[str, str],
+        character_id_to_store_value: dict[str, str],
+    ) -> list[str]:
+        result: list[str] = []
+        for token in tags:
+            raw = self._strip_known_tag_prefix(str(token or "").strip())
+            if not raw:
+                continue
+            key = raw.casefold()
+            character_id = name_to_character_id.get(key, "")
+            if not character_id:
+                continue
+            store_value = character_id_to_store_value.get(character_id, raw)
+            if store_value and store_value not in result:
+                result.append(store_value)
+        return result
+
+    def _build_feature_aliases(self, tag_payload: dict, tag_id: str, display_name: str) -> list[str]:
+        aliases: list[str] = []
+        seen: set[str] = set()
+
+        def append(value: object) -> None:
+            text = str(value or "").strip()
+            if not text:
+                return
+            key = text.casefold()
+            if key in seen:
+                return
+            seen.add(key)
+            aliases.append(text)
+
+        append(tag_id)
+        append(display_name)
+        localized_names = self._collect_name_i18n(tag_payload)
+        for value in localized_names.values():
+            append(value)
+        append(tag_payload.get("name_zh"))
+        append(tag_payload.get("name_en"))
+        append(tag_payload.get("name_ja"))
+        append(tag_payload.get("name_ko"))
+        return aliases
+
+    def _strip_known_tag_prefix(self, text: str) -> str:
+        value = str(text or "").strip()
+        if not value:
+            return ""
+        prefixes = {
+            "标签：",
+            "标签:",
+            "Tags:",
+            "Tags：",
+            "タグ:",
+            "タグ：",
+            "태그:",
+            "태그：",
+            *(entry.get("section_tags", "") for entry in TRANSLATIONS.values()),
+        }
+        for prefix in prefixes:
+            normalized_prefix = str(prefix or "").strip()
+            if not normalized_prefix:
+                continue
+            if value.startswith(normalized_prefix):
+                return value[len(normalized_prefix) :].strip()
+        return value
+
+    def _dedupe_non_empty(self, values: object) -> list[str]:
+        entries = values if isinstance(values, list) else []
+        result: list[str] = []
+        seen: set[str] = set()
+        for value in entries:
+            text = str(value or "").strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            result.append(text)
+        return result
+
+    def _save_queue_record_for_image(
+        self,
+        *,
+        image_path: Path,
+        feature_tags: list[str],
+        characters: list[str],
+    ) -> dict:
+        target_key = normalize_path_key(image_path)
+        queue_records: list[dict] = []
+        updated_record: dict | None = None
+        timestamp = dt.datetime.now().replace(microsecond=0).isoformat()
+        normalized_feature_tags = self._dedupe_non_empty(feature_tags)
+        normalized_characters = self._dedupe_non_empty(characters)
+
+        if self.queue_output.exists():
+            with self.queue_output.open("r", encoding="utf-8") as file:
+                for raw_line in file:
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(payload, dict):
+                        continue
+                    payload_key = self._resolve_queue_payload_path_key(payload)
+                    if payload_key == target_key:
+                        payload["feature_tags"] = normalized_feature_tags
+                        payload["characters"] = normalized_characters
+                        payload["updated_at"] = timestamp
+                        if "status" not in payload:
+                            payload["status"] = "labeled_draft"
+                        if "review_required" not in payload:
+                            payload["review_required"] = bool(normalized_feature_tags or normalized_characters)
+                        updated_record = payload
+                    queue_records.append(payload)
+
+        if updated_record is None:
+            updated_record = {
+                "image_id": "",
+                "image_path": str(image_path),
+                "characters": normalized_characters,
+                "feature_tags": normalized_feature_tags,
+                "source_game": [],
+                "review_required": bool(normalized_feature_tags or normalized_characters),
+                "status": "labeled_draft",
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            }
+            queue_records.append(updated_record)
+
+        self.queue_output.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.queue_output.with_suffix(self.queue_output.suffix + ".tmp")
+        with temp_path.open("w", encoding="utf-8") as file:
+            for payload in queue_records:
+                file.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        temp_path.replace(self.queue_output)
+        return updated_record
+
+    def _feature_ids_to_metadata_tags(self, feature_ids: list[str]) -> list[str]:
+        result: list[str] = []
+        seen: set[str] = set()
+        for feature_id in feature_ids:
+            token = str(feature_id or "").strip()
+            if not token:
+                continue
+            display = self._resolve_feature_tag_display_name(token).strip() or token
+            key = display.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(display)
+        return result
+
+    def _write_image_metadata_tags(self, exiftool: Path, image_to_tags: dict[Path, list[str]]) -> None:
+        for image_path, tags in image_to_tags.items():
+            normalized_tags = self._dedupe_non_empty(tags)
+            tag_text = "; ".join(normalized_tags)
+            args_lines = [
+                "-overwrite_original",
+                "-P",
+                "-m",
+                "-charset",
+                "exiftool=utf8",
+                f"-XMP-dc:Subject={tag_text}",
+                f"-Keywords={tag_text}",
+            ]
+            if image_path.suffix.lower() in {".jpg", ".jpeg", ".tif", ".tiff"}:
+                args_lines.append(f"-XPKeywords={tag_text}")
+            args_lines.append(str(image_path))
+
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".args", delete=False) as temp_args_file:
+                temp_args_path = Path(temp_args_file.name)
+                temp_args_file.write("\n".join(args_lines) + "\n")
+
+            command = [str(exiftool), "-@", str(temp_args_path)]
+            try:
+                process = subprocess.run(
+                    command,
+                    cwd=self.repo_root,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if process.returncode != 0:
+                    detail = process.stderr.strip() or process.stdout.strip() or "unknown exiftool error"
+                    raise RuntimeError(f"{image_path.name}: {detail}")
+            finally:
+                if temp_args_path.exists():
+                    temp_args_path.unlink()
+
+    def _append_queue_tags_for_images(
+        self,
+        *,
+        image_paths: list[Path],
+        feature_tags: list[str],
+        characters: list[str],
+    ) -> dict[str, dict]:
+        target_by_key = {normalize_path_key(path): path for path in image_paths}
+        target_keys = set(target_by_key.keys())
+        if not target_keys:
+            return {}
+
+        queue_records: list[dict] = []
+        updated_records: dict[str, dict] = {}
+        timestamp = dt.datetime.now().replace(microsecond=0).isoformat()
+        normalized_feature_tags = self._dedupe_non_empty(feature_tags)
+        normalized_characters = self._dedupe_non_empty(characters)
+
+        if self.queue_output.exists():
+            with self.queue_output.open("r", encoding="utf-8") as file:
+                for raw_line in file:
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(payload, dict):
+                        continue
+
+                    payload_key = self._resolve_queue_payload_path_key(payload)
+                    if payload_key in target_keys:
+                        existing_features = self._dedupe_non_empty(payload.get("feature_tags", []))
+                        existing_characters = self._dedupe_non_empty(payload.get("characters", []))
+                        payload["feature_tags"] = self._merge_dedup_lists(existing_features, normalized_feature_tags)
+                        payload["characters"] = self._merge_dedup_lists(existing_characters, normalized_characters)
+                        payload["updated_at"] = timestamp
+                        if "status" not in payload:
+                            payload["status"] = "labeled_draft"
+                        if "review_required" not in payload:
+                            payload["review_required"] = bool(payload["feature_tags"] or payload["characters"])
+                        updated_records[payload_key] = payload
+
+                    queue_records.append(payload)
+
+        for target_key in target_keys:
+            if target_key in updated_records:
+                continue
+            image_path = target_by_key.get(target_key)
+            if image_path is None:
+                continue
+            created = {
+                "image_id": "",
+                "image_path": str(image_path),
+                "characters": list(normalized_characters),
+                "feature_tags": list(normalized_feature_tags),
+                "source_game": [],
+                "review_required": bool(normalized_feature_tags or normalized_characters),
+                "status": "labeled_draft",
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            }
+            queue_records.append(created)
+            updated_records[target_key] = created
+
+        self.queue_output.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.queue_output.with_suffix(self.queue_output.suffix + ".tmp")
+        with temp_path.open("w", encoding="utf-8") as file:
+            for payload in queue_records:
+                file.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        temp_path.replace(self.queue_output)
+        return updated_records
+
+    def _merge_dedup_lists(self, base: list[str], appended: list[str]) -> list[str]:
+        merged: list[str] = []
+        seen: set[str] = set()
+        for value in base + appended:
+            text = str(value or "").strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            merged.append(text)
+        return merged
+
+    def _resolve_queue_payload_path_key(self, payload: dict) -> str:
+        raw_path = str(payload.get("image_path", "")).strip()
+        if not raw_path:
+            return ""
+        image_path = Path(raw_path)
+        resolved = image_path if image_path.is_absolute() else (self.repo_root / image_path)
+        return normalize_path_key(resolved)
 
     def _refresh_feature_text_language(self) -> None:
         """Refresh language-dependent list subtitles where safe to translate in place."""

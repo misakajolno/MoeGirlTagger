@@ -11,8 +11,11 @@ from apps.pyside.moegirl_tagger_gui_common import (
     DELETE_BUTTON_SIZE,
     compute_delete_button_rect,
     compute_delete_hit_rect,
+    compute_tag_edit_button_rect,
+    compute_tag_edit_hit_rect,
     compute_row_rect,
     load_list_delete_icon,
+    load_tag_editor_icon,
     SHOW_DELETE_HITBOX,
 )
 from apps.pyside.moegirl_tagger_gui_model import ImageListModel
@@ -21,6 +24,7 @@ class ImageListView(QListView):
     """ListView that supports per-row delete button click."""
 
     deleteRequested = Signal(str)
+    tagEditRequested = Signal(str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -30,12 +34,29 @@ class ImageListView(QListView):
         index = self.indexAt(pos)
         if not index.isValid():
             return ""
+        if not bool(index.flags() & Qt.ItemIsEnabled):
+            return ""
 
         item_rect = self.visualRect(index)
         if not item_rect.contains(pos):
             return ""
         delete_hit_rect = compute_delete_hit_rect(item_rect)
         if not delete_hit_rect.contains(pos):
+            return ""
+        return str(index.data(ImageListModel.ROLE_PATH_KEY) or "")
+
+    def _tag_edit_path_key_at(self, pos: QPoint) -> str:
+        index = self.indexAt(pos)
+        if not index.isValid():
+            return ""
+        if not bool(index.flags() & Qt.ItemIsEnabled):
+            return ""
+
+        item_rect = self.visualRect(index)
+        if not item_rect.contains(pos):
+            return ""
+        tag_hit_rect = compute_tag_edit_hit_rect(item_rect)
+        if not tag_hit_rect.contains(pos):
             return ""
         return str(index.data(ImageListModel.ROLE_PATH_KEY) or "")
 
@@ -47,6 +68,12 @@ class ImageListView(QListView):
                 self._consume_next_release = True
                 event.accept()
                 return
+            tag_path_key = self._tag_edit_path_key_at(event.position().toPoint())
+            if tag_path_key:
+                self.tagEditRequested.emit(tag_path_key)
+                self._consume_next_release = True
+                event.accept()
+                return
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
@@ -55,6 +82,29 @@ class ImageListView(QListView):
             event.accept()
             return
         super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            pos = event.position().toPoint()
+            if self._delete_path_key_at(pos):
+                event.accept()
+                return
+            tag_path_key = self._tag_edit_path_key_at(pos)
+            if tag_path_key:
+                self.tagEditRequested.emit(tag_path_key)
+                event.accept()
+                return
+            index = self.indexAt(pos)
+            if index.isValid():
+                if not bool(index.flags() & Qt.ItemIsEnabled):
+                    event.accept()
+                    return
+                path_key = str(index.data(ImageListModel.ROLE_PATH_KEY) or "")
+                if path_key:
+                    self.tagEditRequested.emit(path_key)
+                    event.accept()
+                    return
+        super().mouseDoubleClickEvent(event)
 
 class ImageListDelegate(QStyledItemDelegate):
     """Custom row renderer for virtualized list."""
@@ -72,7 +122,9 @@ class ImageListDelegate(QStyledItemDelegate):
         self._subtitle_font = QFont()
         self._subtitle_font.setPointSize(10)
         self._delete_icon = load_list_delete_icon() or QIcon()
+        self._tag_edit_icon = load_tag_editor_icon() or QIcon()
         self._delete_icon_size = 24
+        self._tag_edit_icon_size = 24
         self._delete_button_has_background = False
 
     def sizeHint(self, option, index) -> QSize:
@@ -140,7 +192,9 @@ class ImageListDelegate(QStyledItemDelegate):
         painter.setPen(QColor("#6b778a"))
         self._draw_subtitle_chips(painter, subtitle_rect, subtitle)
         delete_rect = QRect(compute_delete_button_rect(item_rect))
+        tag_edit_rect = QRect(compute_tag_edit_button_rect(item_rect))
         self._draw_delete_button(painter, delete_rect, hovered)
+        self._draw_tag_edit_button(painter, tag_edit_rect, hovered)
         if SHOW_DELETE_HITBOX:
             self._draw_delete_hitbox(painter, QRect(compute_delete_hit_rect(item_rect)))
         painter.restore()
@@ -158,6 +212,17 @@ class ImageListDelegate(QStyledItemDelegate):
             painter.setPen(QColor("#6b778a"))
             painter.setFont(self._subtitle_font)
             painter.drawText(QRectF(rect), Qt.AlignCenter, "✕")
+        painter.restore()
+
+    def _draw_tag_edit_button(self, painter: QPainter, rect: QRect, hovered: bool) -> None:
+        painter.save()
+        _ = hovered
+        if not self._tag_edit_icon.isNull():
+            icon_size = min(self._tag_edit_icon_size, rect.width(), rect.height())
+            icon_pixmap = self._tag_edit_icon.pixmap(icon_size, icon_size)
+            icon_rect = QRect(0, 0, icon_size, icon_size)
+            icon_rect.moveCenter(rect.center())
+            painter.drawPixmap(icon_rect, icon_pixmap)
         painter.restore()
 
     def _draw_delete_hitbox(self, painter: QPainter, rect: QRect) -> None:

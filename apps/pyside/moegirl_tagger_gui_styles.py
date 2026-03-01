@@ -22,6 +22,10 @@ def build_window_qss(spin_up_icon: str, spin_down_icon: str) -> str:
         QPushButton#SecondaryButton { background: #edf2fb; color: #2e3642; }
         QPushButton#SecondaryButton:hover { background: #e3ebf8; }
         QPushButton#SecondaryButton:pressed { background: #d8e3f4; }
+        QPushButton#SecondaryButton:disabled {
+            background: #f1f4f9;
+            color: #a1acbe;
+        }
         QPushButton#DangerButton { background: #FF6A6A; color: #ffffff; font-weight: 600; }
         QPushButton#DangerButton:hover { background: #f55f5f; }
         QPushButton#DangerButton:pressed { background: #eb5555; }

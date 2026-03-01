@@ -30,6 +30,7 @@ from apps.pyside.moegirl_tagger_gui_window_analysis_mixin import MoeGirlTaggerWi
 from apps.pyside.moegirl_tagger_gui_window_character_mixin import MoeGirlTaggerWindowCharacterMixin
 from apps.pyside.moegirl_tagger_gui_window_ui_mixin import MoeGirlTaggerWindowUiMixin
 from apps.pyside.moegirl_tagger_gui_workers import (
+    CallableWorker,
     CharacterBulkBuildWorker,
     CharacterDeleteWorker,
     CharacterLibrarySearchWorker,
@@ -79,6 +80,9 @@ class MoeGirlTaggerWindow(
         self.worker: AnalysisWorker | None = None
         self.clear_thread: QThread | None = None
         self.clear_worker: ClearTagsWorker | None = None
+        self.tag_apply_thread: QThread | None = None
+        self.tag_apply_worker: CallableWorker | None = None
+        self.tag_apply_locked_keys: set[str] = set()
         self.character_search_thread: QThread | None = None
         self.character_search_worker: CharacterSearchWorker | None = None
         self.character_library_search_thread: QThread | None = None
