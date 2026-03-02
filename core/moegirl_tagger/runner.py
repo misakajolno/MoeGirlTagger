@@ -27,6 +27,7 @@ class AutoTagOptions:
     barefoot_feature_threshold: float = 0.35
     copyright_threshold: float = 0.70
     custom_character_language: str = "zh-CN"
+    onnx_provider: str = "auto"
     recognize_characters: bool = True
 
 
@@ -107,6 +108,8 @@ def build_auto_tag_command(
         str(options.copyright_threshold),
         "--custom-character-language",
         options.custom_character_language,
+        "--onnx-provider",
+        options.onnx_provider,
     ]
     if not options.recognize_characters:
         command.append("--disable-character-recognition")

@@ -24,22 +24,66 @@ python -X utf8 -m pip install --upgrade pip
 
 ## 4. 安装依赖
 
-### 4.1 CLI 基础依赖
+### 4.1 CLI 基础依赖（CPU 默认）
 
 ```powershell
 python -X utf8 -m pip install requests beautifulsoup4 numpy onnxruntime Pillow
 ```
 
-### 4.2 GUI 依赖
+### 4.2 可选：GPU / 加速推理依赖（ONNX Runtime）
+
+注意：`onnxruntime` / `onnxruntime-gpu` / `onnxruntime-directml` 三者建议只保留一个，避免冲突。
+
+NVIDIA CUDA（推荐 RTX 显卡）：
+
+```powershell
+python -X utf8 -m pip uninstall -y onnxruntime onnxruntime-directml
+python -X utf8 -m pip install -U onnxruntime-gpu
+```
+
+如果启动时仍提示缺少 CUDA DLL（如 `cublasLt64_12.dll`、`cufft64_11.dll`），继续安装：
+
+```powershell
+python -X utf8 -m pip install -U nvidia-cuda-runtime-cu12 nvidia-cuda-nvrtc-cu12 nvidia-cublas-cu12 nvidia-cudnn-cu12 nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-nvjitlink-cu12
+```
+
+DirectML（适合 AMD/Intel/NVIDIA 通用加速）：
+
+```powershell
+python -X utf8 -m pip uninstall -y onnxruntime onnxruntime-gpu
+python -X utf8 -m pip install -U onnxruntime-directml
+```
+
+验证可用 Provider：
+
+```powershell
+python -X utf8 -c "import onnxruntime as ort; print(ort.__version__); print(ort.get_available_providers())"
+```
+
+### 4.3 GUI 依赖
 
 ```powershell
 python -m pip install -r requirements-gui.txt
 ```
 
-### 4.3 API 依赖（本机直跑 FastAPI 时）
+### 4.4 API 依赖（本机直跑 FastAPI 时）
 
 ```powershell
 python -m pip install -r requirements-docker.txt
+```
+
+### 4.5 ExifTool（GUI 标签读取/清除建议先安装）
+
+执行下面命令可自动下载 ExifTool 到 `tools/exiftool/`：
+
+```powershell
+python -X utf8 -c "from pathlib import Path; from scripts.write_tags_to_image_metadata import ensure_exiftool; print(ensure_exiftool(Path('tools/exiftool')))"
+```
+
+安装完成后可校验版本：
+
+```powershell
+tools\exiftool\exiftool.exe -ver
 ```
 
 ## 5. 运行方式
@@ -71,7 +115,8 @@ curl http://localhost:8000/health
 ## 6. 首次运行说明
 
 - 首次推理可能自动下载模型到 `tools/` 目录。
-- 首次写入元数据可能自动下载 ExifTool。
+- CLI 首次写入元数据可能自动下载 ExifTool。
+- GUI 的“读取已有标签/清除标签”不会触发自动下载，建议按 4.4 先安装 ExifTool。
 - 上述行为为正常现象，耗时取决于网络环境。
 
 ## 7. 常见问题

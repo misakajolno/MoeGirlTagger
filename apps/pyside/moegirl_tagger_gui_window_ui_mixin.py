@@ -29,10 +29,13 @@ from PySide6.QtWidgets import (
 from apps.pyside.moegirl_tagger_gui_common import (
     CHARACTER_RECOGNITION_SETTING_KEY,
     DEFAULT_LANGUAGE,
+    DEFAULT_ONNX_PROVIDER,
     DEFAULT_RECOGNIZE_CHARACTERS,
     DEFAULT_THRESHOLDS,
     LANGUAGE_OPTIONS,
     LANGUAGE_SETTING_KEY,
+    ONNX_PROVIDER_OPTIONS,
+    ONNX_PROVIDER_SETTING_KEY,
     SPIN_DOWN_ICON_PATH,
     SPIN_UP_ICON_PATH,
     THRESHOLD_LABEL_KEYS,
@@ -42,6 +45,7 @@ from apps.pyside.moegirl_tagger_gui_common import (
     TRANSLATIONS,
     clamp_threshold,
     normalize_language_code,
+    normalize_onnx_provider,
 )
 from apps.pyside.moegirl_tagger_gui_list import ImageListDelegate, ImageListView
 from apps.pyside.moegirl_tagger_gui_styles import build_window_qss
@@ -439,6 +443,31 @@ class MoeGirlTaggerWindowUiMixin:
         layout.addLayout(recognition_layout)
         layout.addSpacing(10)
 
+        self.onnx_provider_title_label = QLabel()
+        self.onnx_provider_title_label.setObjectName("SettingsSectionTitle")
+        layout.addWidget(self.onnx_provider_title_label)
+        self.onnx_provider_hint_label = QLabel()
+        self.onnx_provider_hint_label.setObjectName("SettingsHint")
+        self.onnx_provider_hint_label.setWordWrap(True)
+        layout.addWidget(self.onnx_provider_hint_label)
+
+        provider_layout = QHBoxLayout()
+        provider_layout.setContentsMargins(0, 0, 0, 0)
+        provider_layout.setSpacing(8)
+        self.onnx_provider_group = QButtonGroup(self)
+        self.onnx_provider_group.setExclusive(True)
+        for provider, _label_key in ONNX_PROVIDER_OPTIONS:
+            button = QPushButton()
+            button.setObjectName("LanguageButton")
+            button.setCheckable(True)
+            button.clicked.connect(lambda _, provider_value=provider: self._on_onnx_provider_selected(provider_value))
+            self.onnx_provider_group.addButton(button)
+            self.onnx_provider_buttons[provider] = button
+            provider_layout.addWidget(button)
+        provider_layout.addStretch(1)
+        layout.addLayout(provider_layout)
+        layout.addSpacing(10)
+
         self.threshold_title_label = QLabel()
         self.threshold_title_label.setObjectName("SettingsSectionTitle")
         layout.addWidget(self.threshold_title_label)
@@ -557,12 +586,31 @@ class MoeGirlTaggerWindowUiMixin:
             self._refresh_taxonomy_name_map()
         self._apply_language()
 
+    def _on_onnx_provider_selected(self, provider_value: str) -> None:
+        """Update in-memory ONNX provider selection from UI control."""
+        self.onnx_provider = normalize_onnx_provider(provider_value)
+
+    def _selected_onnx_provider(self) -> str:
+        """Return currently selected ONNX provider in settings UI."""
+        for provider, button in self.onnx_provider_buttons.items():
+            if button.isChecked():
+                return normalize_onnx_provider(provider)
+        return normalize_onnx_provider(getattr(self, "onnx_provider", DEFAULT_ONNX_PROVIDER))
+
     def _sync_threshold_inputs(self) -> None:
         """Sync threshold controls with persisted values."""
         for key, spinbox in self.threshold_inputs.items():
             spinbox.setValue(self.threshold_values.get(key, DEFAULT_THRESHOLDS[key]))
         if hasattr(self, "recognize_characters_checkbox"):
             self.recognize_characters_checkbox.setChecked(bool(self.character_recognition_enabled))
+        selected_provider = normalize_onnx_provider(getattr(self, "onnx_provider", DEFAULT_ONNX_PROVIDER))
+        if hasattr(self, "onnx_provider_buttons"):
+            selected_button = self.onnx_provider_buttons.get(selected_provider)
+            if selected_button is None:
+                selected_button = self.onnx_provider_buttons.get(DEFAULT_ONNX_PROVIDER)
+            if selected_button is not None:
+                selected_button.setChecked(True)
+        self.onnx_provider = selected_provider
 
     def _reset_threshold_inputs(self) -> None:
         """Reset threshold controls to default values."""
@@ -570,6 +618,11 @@ class MoeGirlTaggerWindowUiMixin:
             spinbox.setValue(DEFAULT_THRESHOLDS[key])
         if hasattr(self, "recognize_characters_checkbox"):
             self.recognize_characters_checkbox.setChecked(DEFAULT_RECOGNIZE_CHARACTERS)
+        if hasattr(self, "onnx_provider_buttons"):
+            default_button = self.onnx_provider_buttons.get(DEFAULT_ONNX_PROVIDER)
+            if default_button is not None:
+                default_button.setChecked(True)
+        self.onnx_provider = DEFAULT_ONNX_PROVIDER
 
     def _save_threshold_settings(self) -> None:
         """Save threshold values to QSettings."""
@@ -582,6 +635,9 @@ class MoeGirlTaggerWindowUiMixin:
         recognize_characters = bool(self.recognize_characters_checkbox.isChecked())
         self.character_recognition_enabled = recognize_characters
         self.settings.setValue(CHARACTER_RECOGNITION_SETTING_KEY, recognize_characters)
+        selected_provider = self._selected_onnx_provider()
+        self.onnx_provider = selected_provider
+        self.settings.setValue(ONNX_PROVIDER_SETTING_KEY, selected_provider)
         self._show_toast(self._tr("settings_saved_toast"))
         self._set_status(self._tr("settings_saved_status"))
 
@@ -711,6 +767,8 @@ class MoeGirlTaggerWindowUiMixin:
         self.settings_threshold_note_label.setText(self._tr("settings_threshold_notes"))
         self.language_title_label.setText(self._tr("settings_language_title"))
         self.character_recognition_title_label.setText(self._tr("settings_character_recognition_label"))
+        self.onnx_provider_title_label.setText(self._tr("settings_onnx_provider_title"))
+        self.onnx_provider_hint_label.setText(self._tr("settings_onnx_provider_hint"))
         self.threshold_title_label.setText(self._tr("settings_threshold_title"))
         self.reset_settings_button.setText(self._tr("settings_reset"))
         self.save_settings_button.setText(self._tr("settings_save"))
@@ -718,6 +776,10 @@ class MoeGirlTaggerWindowUiMixin:
         self.rebuild_correlation_profiles_hint_label.setText(self._tr("settings_rebuild_correlation_profiles_hint"))
         self.settings_github_link_button.setText(self._tr("settings_project_github"))
         self.settings_version_label.setText(self._tr("settings_version_text", version=APP_VERSION))
+        for provider, label_key in ONNX_PROVIDER_OPTIONS:
+            button = self.onnx_provider_buttons.get(provider)
+            if button is not None:
+                button.setText(self._tr(label_key))
 
         for key, label in self.threshold_name_labels.items():
             label.setText(self._tr(THRESHOLD_LABEL_KEYS[key]))

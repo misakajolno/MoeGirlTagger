@@ -108,6 +108,52 @@ def parse_tag_category(raw_value: str) -> str:
     return "general"
 
 
+def resolve_onnx_execution_providers(
+    preferred: str = "auto",
+    available_providers: list[str] | None = None,
+) -> list[str]:
+    """Resolve provider order with graceful fallback."""
+    normalized = str(preferred or "").strip().lower()
+    alias_map = {
+        "": "auto",
+        "auto": "auto",
+        "cpu": "cpu",
+        "cuda": "cuda",
+        "gpu": "cuda",
+        "directml": "directml",
+        "dml": "directml",
+    }
+    mode = alias_map.get(normalized, "auto")
+    available = available_providers if available_providers is not None else list(ort.get_available_providers())
+    available_set = {str(provider).strip() for provider in available if str(provider).strip()}
+    order_by_mode = {
+        "auto": ["CUDAExecutionProvider", "DmlExecutionProvider", "CPUExecutionProvider"],
+        "cuda": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+        "directml": ["DmlExecutionProvider", "CPUExecutionProvider"],
+        "cpu": ["CPUExecutionProvider"],
+    }
+
+    resolved: list[str] = []
+    seen: set[str] = set()
+    for provider in order_by_mode[mode]:
+        if provider in seen:
+            continue
+        if provider not in available_set:
+            continue
+        resolved.append(provider)
+        seen.add(provider)
+
+    if not resolved and "CPUExecutionProvider" in available_set:
+        resolved.append("CPUExecutionProvider")
+    if not resolved:
+        for provider in available:
+            text = str(provider).strip()
+            if text and text not in seen:
+                resolved.append(text)
+                break
+    return resolved
+
+
 @dataclass
 class ModelTag:
     """One model output tag with score and category."""
@@ -120,14 +166,19 @@ class ModelTag:
 class WD14Tagger:
     """WD14 ONNX tagger wrapper."""
 
-    def __init__(self, model_path: Path, tags_path: Path) -> None:
+    def __init__(self, model_path: Path, tags_path: Path, execution_provider: str = "auto") -> None:
         self.model_path = model_path
         self.tags_path = tags_path
         self.tags = self._load_tags(tags_path)
+        self._general_tag_last_index_by_normalized_name = self._build_general_tag_last_index(self.tags)
+        self.execution_provider = str(execution_provider or "").strip().lower() or "auto"
+        provider_order = resolve_onnx_execution_providers(self.execution_provider)
+        self._preload_runtime_dlls_for_provider_order(provider_order)
         self.session = ort.InferenceSession(
             str(model_path),
-            providers=["CPUExecutionProvider"],
+            providers=provider_order,
         )
+        self.active_execution_providers = list(self.session.get_providers())
         input_shape = self.session.get_inputs()[0].shape
         self.input_name = self.session.get_inputs()[0].name
         self.output_name = self.session.get_outputs()[0].name
@@ -146,6 +197,38 @@ class WD14Tagger:
                 category = parse_tag_category(str(row.get("category", "")))
                 tags.append((tag_name, category))
         return tags
+
+    @staticmethod
+    def _build_general_tag_last_index(tags: list[tuple[str, str]]) -> dict[str, int]:
+        """Build normalized general-tag -> last row index mapping."""
+        result: dict[str, int] = {}
+        for index, (tag_name, category) in enumerate(tags):
+            if str(category).strip() != "general":
+                continue
+            normalized = normalize_token(tag_name)
+            if not normalized:
+                continue
+            result[normalized] = int(index)
+        return result
+
+    @staticmethod
+    def _preload_runtime_dlls_for_provider_order(provider_order: list[str]) -> None:
+        """Best-effort preload for CUDA EP dependencies on Windows."""
+        if "CUDAExecutionProvider" not in provider_order:
+            return
+        preload = getattr(ort, "preload_dlls", None)
+        if not callable(preload):
+            return
+        # Prefer nvidia site-packages (installed via pip) before default DLL paths.
+        try:
+            preload(cuda=True, cudnn=True, msvc=True, directory="")
+            return
+        except Exception:
+            pass
+        try:
+            preload(cuda=True, cudnn=True, msvc=True)
+        except Exception:
+            pass
 
     def _prepare_input_array(self, image: Image.Image) -> np.ndarray:
         rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
@@ -183,13 +266,33 @@ class WD14Tagger:
         return np.asarray(outputs[0], dtype=np.float32)
 
     def _build_model_tags(self, score_vector: np.ndarray) -> list[ModelTag]:
-        scores = score_vector.astype(float).tolist()
-        count = min(len(scores), len(self.tags))
+        scores = np.asarray(score_vector, dtype=np.float32).reshape(-1)
+        count = min(int(scores.size), len(self.tags))
         result: list[ModelTag] = []
         for index in range(count):
             tag_name, category = self.tags[index]
-            result.append(ModelTag(name=tag_name, category=category, score=scores[index]))
+            result.append(ModelTag(name=tag_name, category=category, score=float(scores[index])))
         return result
+
+    def predict_score_vector_from_image(self, image: Image.Image) -> np.ndarray:
+        """Run model for in-memory image and return raw score vector."""
+        return self._predict_scores_from_image(image)
+
+    def score_for_general_tag(self, score_vector: np.ndarray, normalized_tag_name: str) -> float:
+        """Return one normalized general-tag score from model vector."""
+        name = str(normalized_tag_name).strip()
+        if not name:
+            return 0.0
+        index = self._general_tag_last_index_by_normalized_name.get(name)
+        if index is None:
+            return 0.0
+        vector = np.asarray(score_vector, dtype=np.float32).reshape(-1)
+        if index < 0 or index >= int(vector.size):
+            return 0.0
+        score = float(vector[index])
+        if score <= 0.0:
+            return 0.0
+        return min(1.0, score)
 
     def predict_with_vector(self, image_path: Path) -> tuple[list[ModelTag], np.ndarray]:
         """Run inference and return structured tags with raw vector."""

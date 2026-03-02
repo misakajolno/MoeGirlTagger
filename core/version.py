@@ -1,4 +1,3 @@
 """Application version constants."""
 
-APP_VERSION = "1.0.0"
-
+APP_VERSION = "1.0.1"

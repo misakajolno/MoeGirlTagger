@@ -86,6 +86,8 @@ def resolve_custom_characters_with_region_queries(
     top_k: int = 1,
     min_margin: float = 0.0,
     tag_index: dict[str, int] | None = None,
+    normalized_tag_index: dict[str, int] | None = None,
+    correlation_profiles: dict[str, _CharacterCorrelationProfile] | None = None,
 ) -> list[str]:
     """Resolve custom characters using weighted multi-region queries."""
     if custom_index is None:
@@ -96,19 +98,31 @@ def resolve_custom_characters_with_region_queries(
 
     safe_top_k = max(1, int(top_k))
     head_query_count = max(0, len(query_item_list) - 1)
-    normalized_tag_index: dict[str, int] = {}
-    if tag_index:
+    prepared_tag_index: dict[str, int] = {}
+    if normalized_tag_index is not None:
+        for raw_name, raw_index in normalized_tag_index.items():
+            normalized_name = str(raw_name).strip()
+            if not normalized_name:
+                continue
+            try:
+                prepared_tag_index[normalized_name] = int(raw_index)
+            except Exception:
+                continue
+    elif tag_index:
         for raw_name, raw_index in tag_index.items():
             normalized_name = normalize_token(str(raw_name))
             if not normalized_name:
                 continue
             try:
-                normalized_tag_index[normalized_name] = int(raw_index)
+                prepared_tag_index[normalized_name] = int(raw_index)
             except Exception:
                 continue
-    correlation_profiles: dict[str, _CharacterCorrelationProfile] = {}
-    if normalized_tag_index:
-        correlation_profiles = _get_character_correlation_profiles(custom_index, normalized_tag_index)
+
+    prepared_profiles: dict[str, _CharacterCorrelationProfile] = (
+        correlation_profiles if isinstance(correlation_profiles, dict) else {}
+    )
+    if correlation_profiles is None and prepared_tag_index:
+        prepared_profiles = _get_character_correlation_profiles(custom_index, prepared_tag_index)
 
     reference_count_by_id = getattr(custom_index, "reference_count_by_id", {})
     evidence_by_id: dict[str, _CharacterEvidence] = {}
@@ -122,17 +136,17 @@ def resolve_custom_characters_with_region_queries(
         query_hair_score = 0.0
         query_eye_group = ""
         query_eye_score = 0.0
-        if normalized_tag_index:
+        if prepared_tag_index:
             query_hair_group, query_hair_score = _extract_dominant_group(
                 vector=query_array,
-                tag_index=normalized_tag_index,
+                tag_index=prepared_tag_index,
                 candidates=ATTRIBUTE_HAIR_COLOR_TAGS,
                 group_map=HAIR_COLOR_GROUP_MAP,
                 min_score=CORRELATION_PROFILE_MIN_SCORE,
             )
             query_eye_group, query_eye_score = _extract_dominant_group(
                 vector=query_array,
-                tag_index=normalized_tag_index,
+                tag_index=prepared_tag_index,
                 candidates=ATTRIBUTE_EYE_COLOR_TAGS,
                 group_map=EYE_COLOR_GROUP_MAP,
                 min_score=CORRELATION_PROFILE_MIN_SCORE,
@@ -153,7 +167,7 @@ def resolve_custom_characters_with_region_queries(
             if not character_id:
                 continue
             adjusted_similarity = float(match.similarity)
-            profile = correlation_profiles.get(character_id)
+            profile = prepared_profiles.get(character_id)
             adjusted_similarity *= _correlation_multiplier(
                 hair_group=query_hair_group,
                 hair_score=query_hair_score,
@@ -161,14 +175,14 @@ def resolve_custom_characters_with_region_queries(
                 eye_score=query_eye_score,
                 profile=profile,
             )
-            if normalized_tag_index:
+            if prepared_tag_index:
                 row_index = int(match.row_index)
                 if 0 <= row_index < custom_index.embeddings.shape[0]:
                     reference_vector = np.asarray(custom_index.embeddings[row_index], dtype=np.float32).reshape(-1)
                     adjustment = _attribute_score_adjustment(
                         query_vector=query_array,
                         reference_vector=reference_vector,
-                        tag_index=normalized_tag_index,
+                        tag_index=prepared_tag_index,
                     )
                     if query_weight <= (FULL_IMAGE_CHARACTER_WEIGHT + 0.05):
                         adjustment *= 0.40
@@ -273,6 +287,8 @@ def resolve_custom_characters(
     top_k: int = 1,
     min_margin: float = 0.0,
     tag_index: dict[str, int] | None = None,
+    normalized_tag_index: dict[str, int] | None = None,
+    correlation_profiles: dict[str, _CharacterCorrelationProfile] | None = None,
 ) -> list[str]:
     """Resolve custom character names using vector retrieval."""
     return resolve_custom_characters_with_region_queries(
@@ -282,4 +298,6 @@ def resolve_custom_characters(
         top_k=top_k,
         min_margin=min_margin,
         tag_index=tag_index,
+        normalized_tag_index=normalized_tag_index,
+        correlation_profiles=correlation_profiles,
     )

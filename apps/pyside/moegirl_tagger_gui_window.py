@@ -13,15 +13,18 @@ from apps.pyside.moegirl_character_manager_service import CharacterManagerServic
 from apps.pyside.moegirl_tagger_gui_common import (
     CHARACTER_RECOGNITION_SETTING_KEY,
     DEFAULT_LANGUAGE,
+    DEFAULT_ONNX_PROVIDER,
     DEFAULT_RECOGNIZE_CHARACTERS,
     DEFAULT_THRESHOLDS,
     LANGUAGE_SETTING_KEY,
     LAST_OPEN_DIR_SETTING_KEY,
+    ONNX_PROVIDER_SETTING_KEY,
     THRESHOLD_SETTING_KEYS,
     TRANSLATIONS,
     clamp_threshold,
     load_taxonomy_name_map,
     normalize_language_code,
+    normalize_onnx_provider,
     parse_settings_bool,
 )
 from apps.pyside.moegirl_tagger_gui_model import ImageListModel
@@ -74,6 +77,7 @@ class MoeGirlTaggerWindow(
 
         self.threshold_values = self._load_threshold_values()
         self.character_recognition_enabled = self._load_character_recognition_enabled()
+        self.onnx_provider = self._load_onnx_provider()
         self.image_paths_by_key: dict[str, Path] = {}
         self.image_model = ImageListModel(self)
         self.worker_thread: QThread | None = None
@@ -97,6 +101,7 @@ class MoeGirlTaggerWindow(
         self.threshold_inputs: dict[str, QDoubleSpinBox] = {}
         self.threshold_name_labels: dict[str, QLabel] = {}
         self.threshold_range_labels: dict[str, QLabel] = {}
+        self.onnx_provider_buttons: dict[str, QPushButton] = {}
         self.language_buttons: dict[str, QPushButton] = {}
         self.search_candidates: list[SearchCandidate] = []
         self.search_candidate_avatar_payloads: dict[int, bytes] = {}
@@ -168,6 +173,11 @@ class MoeGirlTaggerWindow(
         """Load the persisted character-recognition toggle state."""
         raw_value = self.settings.value(CHARACTER_RECOGNITION_SETTING_KEY, DEFAULT_RECOGNIZE_CHARACTERS)
         return parse_settings_bool(raw_value, default=DEFAULT_RECOGNIZE_CHARACTERS)
+
+    def _load_onnx_provider(self) -> str:
+        """Load persisted ONNX provider preference."""
+        raw_value = self.settings.value(ONNX_PROVIDER_SETTING_KEY, DEFAULT_ONNX_PROVIDER)
+        return normalize_onnx_provider(raw_value)
 
     def _tr(self, key: str, **kwargs) -> str:
         """Translate UI text with current language fallback."""

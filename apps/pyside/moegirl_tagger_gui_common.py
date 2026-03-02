@@ -21,6 +21,7 @@ SHOW_DELETE_HITBOX = False
 LAST_OPEN_DIR_SETTING_KEY = "ui/last_open_dir"
 LANGUAGE_SETTING_KEY = "ui/language"
 CHARACTER_RECOGNITION_SETTING_KEY = "analysis/recognize_characters"
+ONNX_PROVIDER_SETTING_KEY = "analysis/onnx_provider"
 APP_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "app_icon.ico"
 SPIN_UP_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "spin_up.svg"
 SPIN_DOWN_ICON_PATH = Path(__file__).resolve().parent / "assets" / "icons" / "spin_down.svg"
@@ -32,12 +33,19 @@ FEATURE_FORCE_VISIBLE = ("barefoot",)
 THRESHOLD_MIN_VALUE = 0.0
 THRESHOLD_MAX_VALUE = 1.0
 DEFAULT_RECOGNIZE_CHARACTERS = True
+DEFAULT_ONNX_PROVIDER = "auto"
 DEFAULT_LANGUAGE = "zh-CN"
 LANGUAGE_OPTIONS = (
     ("zh-CN", "中文"),
     ("en-US", "English"),
     ("ja-JP", "日本語"),
     ("ko-KR", "한국어"),
+)
+ONNX_PROVIDER_OPTIONS = (
+    ("auto", "onnx_provider_auto"),
+    ("cpu", "onnx_provider_cpu"),
+    ("cuda", "onnx_provider_cuda"),
+    ("directml", "onnx_provider_directml"),
 )
 DEFAULT_THRESHOLDS = {
     "feature_threshold": 0.62,
@@ -207,6 +215,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_diff_hint": "最小值更宽松（更容易命中），最大值更严格（更不容易命中）。",
         "settings_language_title": "语言切换",
         "settings_character_recognition_label": "是否识别角色",
+        "settings_onnx_provider_title": "ONNX 推理设备",
+        "settings_onnx_provider_hint": "自动优先尝试 CUDA/DirectML，不可用时回退 CPU。环境变量 MOEGIRL_ONNX_PROVIDER 会覆盖此设置。",
+        "onnx_provider_auto": "自动",
+        "onnx_provider_cpu": "CPU",
+        "onnx_provider_cuda": "CUDA (NVIDIA)",
+        "onnx_provider_directml": "DirectML",
         "settings_threshold_title": "阈值配置",
         "settings_threshold_helper": "所有阈值保存后会用于下一次分析。",
         "settings_threshold_notes": "备注：\n自定义角色阈值：自定义角色库最低相似度。\n自定义角色区分边距：第一候选与第二候选的最小差值，越大越不易混图。\n作品阈值：作品（版权）标签最低命中分。",
@@ -393,6 +407,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_diff_hint": "Lower values are looser (more hits); higher values are stricter (fewer hits).",
         "settings_language_title": "Language",
         "settings_character_recognition_label": "Recognize Characters",
+        "settings_onnx_provider_title": "ONNX Inference Device",
+        "settings_onnx_provider_hint": "Auto prefers CUDA/DirectML and falls back to CPU. Environment variable MOEGIRL_ONNX_PROVIDER overrides this setting.",
+        "onnx_provider_auto": "Auto",
+        "onnx_provider_cpu": "CPU",
+        "onnx_provider_cuda": "CUDA (NVIDIA)",
+        "onnx_provider_directml": "DirectML",
         "settings_threshold_title": "Thresholds",
         "settings_threshold_helper": "Saved thresholds will be used in the next analysis run.",
         "settings_threshold_notes": "Notes:\nCustom Character Threshold: minimum similarity for custom library matching.\nCustom Character Margin: minimum top1-top2 gap; larger values reduce mixed identities.\nCopyright Threshold: minimum score for copyright/work tags.",
@@ -487,6 +507,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_range_hint": "しきい値範囲: 最小 {min}、最大 {max}。",
         "settings_diff_hint": "最小値は緩め（検出されやすい）、最大値は厳しめ（検出されにくい）です。",
         "settings_language_title": "言語",
+        "settings_onnx_provider_title": "ONNX 推論デバイス",
+        "settings_onnx_provider_hint": "自動は CUDA/DirectML を優先し、利用不可時は CPU にフォールバックします。環境変数 MOEGIRL_ONNX_PROVIDER はこの設定より優先されます。",
+        "onnx_provider_auto": "自動",
+        "onnx_provider_cpu": "CPU",
+        "onnx_provider_cuda": "CUDA (NVIDIA)",
+        "onnx_provider_directml": "DirectML",
         "settings_threshold_title": "しきい値",
         "settings_threshold_helper": "保存したしきい値は次回の分析で適用されます。",
         "settings_threshold_notes": "注記:\nカスタムキャラしきい値: カスタムライブラリ照合の最小類似度。\nカスタムキャラ差分マージン: 1位と2位候補の最小差。大きいほど混在しにくいです。\n作品しきい値: 作品(著作権)タグの最小スコア。",
@@ -562,6 +588,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_range_hint": "임계값 범위: 최소 {min}, 최대 {max}.",
         "settings_diff_hint": "최소값은 느슨함(더 잘 감지), 최대값은 엄격함(덜 감지)입니다.",
         "settings_language_title": "언어",
+        "settings_onnx_provider_title": "ONNX 추론 장치",
+        "settings_onnx_provider_hint": "자동은 CUDA/DirectML을 우선 시도하고 불가하면 CPU로 폴백합니다. 환경 변수 MOEGIRL_ONNX_PROVIDER가 이 설정보다 우선합니다.",
+        "onnx_provider_auto": "자동",
+        "onnx_provider_cpu": "CPU",
+        "onnx_provider_cuda": "CUDA (NVIDIA)",
+        "onnx_provider_directml": "DirectML",
         "settings_threshold_title": "임계값",
         "settings_threshold_helper": "저장한 임계값은 다음 분석부터 적용됩니다.",
         "settings_threshold_notes": "참고:\n커스텀 캐릭터 임계값: 커스텀 라이브러리 매칭 최소 유사도입니다.\n커스텀 캐릭터 마진: 1순위와 2순위의 최소 차이로, 클수록 혼입이 줄어듭니다.\n작품 임계값: 작품(저작권) 태그 최소 점수입니다.",
@@ -1036,6 +1068,21 @@ def parse_settings_bool(value: object, default: bool = False) -> bool:
     if text in {"0", "false", "no", "off"}:
         return False
     return bool(default)
+
+
+def normalize_onnx_provider(value: object) -> str:
+    """Normalize persisted/provider input into supported ONNX provider mode."""
+    normalized = str(value or "").strip().lower()
+    alias_map = {
+        "": DEFAULT_ONNX_PROVIDER,
+        "auto": "auto",
+        "cpu": "cpu",
+        "cuda": "cuda",
+        "gpu": "cuda",
+        "directml": "directml",
+        "dml": "directml",
+    }
+    return alias_map.get(normalized, DEFAULT_ONNX_PROVIDER)
 
 
 def normalize_language_code(value: str) -> str:

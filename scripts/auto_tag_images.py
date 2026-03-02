@@ -102,6 +102,12 @@ def parse_args() -> argparse.Namespace:
         help="Preferred language code for custom character names (e.g. zh-CN/en-US/ja-JP).",
     )
     parser.add_argument(
+        "--onnx-provider",
+        default="auto",
+        choices=["auto", "cpu", "cuda", "directml", "dml"],
+        help="ONNX Runtime execution provider preference with automatic fallback.",
+    )
+    parser.add_argument(
         "--disable-character-recognition",
         action="store_true",
         help="Disable custom character recognition and only keep feature/work analysis.",
@@ -147,7 +153,11 @@ def main() -> None:
     exiftool_dir = (root / args.exiftool_dir).resolve()
 
     model_path, tags_path = ensure_model_assets(model_dir)
-    tagger = WD14Tagger(model_path=model_path, tags_path=tags_path)
+    tagger = WD14Tagger(
+        model_path=model_path,
+        tags_path=tags_path,
+        execution_provider=str(args.onnx_provider).strip() or "auto",
+    )
     wd14_tag_index = {
         normalize_token(name): index for index, (name, _category) in enumerate(tagger.tags)
     }
@@ -165,6 +175,8 @@ def main() -> None:
         sensitive_terms_path=sensitive_terms_path,
     )
     custom_index = None
+    normalized_wd14_tag_index: dict[str, int] = {}
+    precomputed_correlation_profiles = None
     if not bool(args.disable_character_recognition):
         custom_store = CustomCharacterStore(custom_character_dir)
         custom_index = load_or_build_custom_character_index(
@@ -175,6 +187,21 @@ def main() -> None:
         )
         if custom_index is not None and bool(args.rebuild_correlation_profiles):
             rebuild_character_correlation_profiles(custom_index, wd14_tag_index)
+        for raw_name, raw_index in wd14_tag_index.items():
+            normalized_name = normalize_token(str(raw_name))
+            if not normalized_name:
+                continue
+            try:
+                normalized_wd14_tag_index[normalized_name] = int(raw_index)
+            except Exception:
+                continue
+        if custom_index is not None and normalized_wd14_tag_index:
+            precomputed_correlation_profiles = _get_character_correlation_profiles(
+                custom_index,
+                normalized_wd14_tag_index,
+            )
+        else:
+            precomputed_correlation_profiles = {}
 
     if args.input_list:
         input_list_path = (root / args.input_list).resolve()
@@ -228,6 +255,8 @@ def main() -> None:
                 top_k=effective_character_top_k,
                 min_margin=max(0.0, float(args.custom_character_margin)),
                 tag_index=wd14_tag_index,
+                normalized_tag_index=normalized_wd14_tag_index,
+                correlation_profiles=precomputed_correlation_profiles,
             )
         copyright_tags = [
             tag.name
@@ -267,6 +296,7 @@ def main() -> None:
     print(f"Metadata targets: {target}")
     print(f"Metadata updated: {updated}")
     print(f"Metadata skipped: {skipped}")
+    print(f"ONNX providers: {', '.join(getattr(tagger, 'active_execution_providers', []))}")
 
 
 if __name__ == "__main__":

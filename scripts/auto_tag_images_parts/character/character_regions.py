@@ -92,6 +92,16 @@ def _head_candidate_score(predicted_tags: Iterable[ModelTag]) -> float:
     return max(0.0, float(score))
 
 
+def _head_candidate_score_from_vector(tagger: WD14Tagger, score_vector: np.ndarray) -> float:
+    """Compute head score directly from score vector to avoid tag-object expansion."""
+    score = 0.0
+    for name, weight in HEAD_SIGNAL_TAG_WEIGHTS.items():
+        score += float(weight) * float(tagger.score_for_general_tag(score_vector, name))
+    for name, weight in HEAD_NEGATIVE_TAG_WEIGHTS.items():
+        score += float(weight) * float(tagger.score_for_general_tag(score_vector, name))
+    return max(0.0, float(score))
+
+
 def _build_split_head_ratio_boxes(inferred_count: int) -> list[tuple[float, float, float, float]]:
     count = max(1, min(int(inferred_count), MAX_HEAD_QUERY_REGIONS))
     if count <= 1:
@@ -169,10 +179,20 @@ def _select_head_regions(
         for box in boxes:
             crop = image.crop(box)
             try:
-                predicted, vector = tagger.predict_with_vector_from_image(crop)
+                vector_predictor = getattr(tagger, "predict_score_vector_from_image", None)
+                score_getter = getattr(tagger, "score_for_general_tag", None)
+                if callable(vector_predictor) and callable(score_getter):
+                    score_vector = vector_predictor(crop)
+                    head_score = _head_candidate_score_from_vector(
+                        tagger,
+                        np.asarray(score_vector, dtype=np.float32).reshape(-1),
+                    )
+                    vector = score_vector
+                else:
+                    predicted, vector = tagger.predict_with_vector_from_image(crop)
+                    head_score = _head_candidate_score(predicted)
             except Exception:
                 continue
-            head_score = _head_candidate_score(predicted)
             width_box = max(1, box[2] - box[0])
             height_box = max(1, box[3] - box[1])
             area_ratio = float(width_box * height_box) / float(max(1, width * height))

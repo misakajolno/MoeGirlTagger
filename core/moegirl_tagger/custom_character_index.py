@@ -82,9 +82,14 @@ class CharacterVectorIndex:
         if scores.ndim != 1 or scores.size == 0:
             return []
 
-        order = np.argsort(scores)[::-1]
+        safe_top_k = max(1, min(int(top_k), int(scores.size)))
+        if safe_top_k >= int(scores.size):
+            order = np.argsort(scores)[::-1]
+        else:
+            candidate_indices = np.argpartition(scores, -safe_top_k)[-safe_top_k:]
+            order = candidate_indices[np.argsort(scores[candidate_indices])[::-1]]
         matches: list[CharacterVectorMatch] = []
-        for index in order[:top_k]:
+        for index in order:
             similarity = float(scores[index])
             if similarity < min_similarity:
                 continue

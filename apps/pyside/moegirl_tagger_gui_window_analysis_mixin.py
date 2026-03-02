@@ -15,10 +15,12 @@ from PySide6.QtWidgets import QApplication, QDialog, QFileDialog
 
 from apps.pyside.moegirl_tagger_gui_common import (
     DEFAULT_FEATURE_TEXT,
+    DEFAULT_ONNX_PROVIDER,
     FEATURE_FORCE_VISIBLE,
     FEATURE_PREVIEW_LIMIT,
     TRANSLATIONS,
     collect_images_from_folder,
+    normalize_onnx_provider,
     normalize_path_key,
 )
 from apps.pyside.moegirl_tagger_gui_model import ImageListModel
@@ -451,6 +453,10 @@ class MoeGirlTaggerWindowAnalysisMixin:
         if hasattr(self, "recognize_characters_checkbox"):
             recognize_characters = bool(self.recognize_characters_checkbox.isChecked())
             self.character_recognition_enabled = recognize_characters
+        onnx_provider = normalize_onnx_provider(getattr(self, "onnx_provider", DEFAULT_ONNX_PROVIDER))
+        if hasattr(self, "_selected_onnx_provider"):
+            onnx_provider = normalize_onnx_provider(self._selected_onnx_provider())
+        self.onnx_provider = onnx_provider
         self.worker = AnalysisWorker(
             self.repo_root,
             selected_paths,
@@ -458,6 +464,7 @@ class MoeGirlTaggerWindowAnalysisMixin:
             thresholds=self.threshold_values.copy(),
             language_code=self.current_language,
             recognize_characters=recognize_characters,
+            onnx_provider=onnx_provider,
         )
         self.worker.moveToThread(self.worker_thread)
 

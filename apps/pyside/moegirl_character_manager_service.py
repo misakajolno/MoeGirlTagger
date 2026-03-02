@@ -5,8 +5,11 @@ from __future__ import annotations
 import datetime as dt
 import json
 import tempfile
+import threading
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Literal, cast
 from urllib.parse import urlparse
 
 import requests
@@ -30,6 +33,15 @@ def download_avatar_file(url: str, target_path: Path) -> None:
             for chunk in response.iter_content(chunk_size=1024 * 128):
                 if chunk:
                     output.write(chunk)
+
+
+@dataclass
+class _SearchSession:
+    """Per-keyword search session for paging through online candidates."""
+
+    keyword: str
+    seen: set[str] = field(default_factory=set)
+    last_used_at: float = field(default_factory=time.monotonic)
 
 
 class CharacterManagerService:
@@ -56,6 +68,14 @@ class CharacterManagerService:
         self.logs_root.mkdir(parents=True, exist_ok=True)
         self.build_state_path = (self.custom_root / "build_state.json").resolve()
         self.build_log_path = (self.logs_root / "character_build.log").resolve()
+
+        # Session state to avoid returning the same unselected top results forever.
+        # Keyed by a normalized keyword (match_key) so repeated work-name searches
+        # page forward instead of getting stuck on the same leftovers.
+        self._search_sessions_lock = threading.Lock()
+        self._search_sessions: dict[str, _SearchSession] = {}
+        self._search_sessions_ttl_seconds = 60.0 * 30.0  # 30 minutes
+        self._search_sessions_max_entries = 30
 
     @staticmethod
     def _now_iso() -> str:
@@ -151,6 +171,44 @@ class CharacterManagerService:
     def _match_key(value: str) -> str:
         lowered = str(value or "").strip().lower()
         return "".join(char for char in lowered if char.isalnum())
+
+    def _normalize_search_session_key(self, keyword: str) -> str:
+        normalized = self._match_key(keyword)
+        if normalized:
+            return normalized
+        # Keep something stable for weird inputs (emoji, punctuation-only, etc.).
+        return str(keyword or "").strip().casefold()
+
+    def _candidate_dedupe_key(self, candidate: SearchCandidate) -> str:
+        provider_key = self._candidate_provider_key(candidate.provider, candidate.provider_entity_id)
+        if provider_key:
+            return provider_key
+        provider = str(candidate.provider or "").strip().lower()
+        name = str(candidate.display_name or "").strip().lower()
+        source = str(candidate.source_title or "").strip().lower()
+        if provider or name or source:
+            return f"{provider}:{name}:{source}".strip(":")
+        return ""
+
+    def _prune_search_sessions_unlocked(self, now: float) -> None:
+        ttl = float(self._search_sessions_ttl_seconds)
+        if ttl > 0:
+            expired = [
+                key
+                for key, session in self._search_sessions.items()
+                if (now - float(session.last_used_at)) > ttl
+            ]
+            for key in expired:
+                self._search_sessions.pop(key, None)
+
+        max_entries = max(1, int(self._search_sessions_max_entries))
+        if len(self._search_sessions) <= max_entries:
+            return
+        # Drop least-recently-used sessions.
+        ordered = sorted(self._search_sessions.items(), key=lambda item: float(item[1].last_used_at))
+        drop_count = max(0, len(self._search_sessions) - max_entries)
+        for key, _session in ordered[:drop_count]:
+            self._search_sessions.pop(key, None)
 
     @staticmethod
     def _contains_non_ascii_letters(value: str) -> bool:
@@ -390,9 +448,58 @@ class CharacterManagerService:
         # searches can still return new characters.
         provider_limit = max(120, safe_limit * 6)
         provider_limit = min(provider_limit, 300)
-        candidates = self.provider.search(keyword, limit=provider_limit)
+        query = str(keyword or "").strip()
+        if not query:
+            return []
+
+        # Pull a larger pool once per click, but page forward within the keyword
+        # session so unselected leftovers do not permanently block new content.
+        candidates = self.provider.search(query, limit=provider_limit)
         filtered = self._filter_existing_candidates(candidates)
-        return filtered[:safe_limit]
+
+        now = time.monotonic()
+        session_key = self._normalize_search_session_key(query)
+        with self._search_sessions_lock:
+            self._prune_search_sessions_unlocked(now)
+            session = self._search_sessions.get(session_key)
+            if session is None:
+                session = _SearchSession(keyword=query)
+                self._search_sessions[session_key] = session
+            else:
+                # Keep latest raw keyword for debugging/UI; do not reset paging state.
+                session.keyword = query
+            session.last_used_at = now
+            seen = set(session.seen)
+
+        unseen: list[SearchCandidate] = []
+        already_seen: list[SearchCandidate] = []
+        for candidate in filtered:
+            key = self._candidate_dedupe_key(candidate)
+            if key and key in seen:
+                already_seen.append(candidate)
+            else:
+                unseen.append(candidate)
+
+        # Prefer returning unseen candidates. If we are near the end of the pool,
+        # backfill with previously seen items so the list does not shrink to a
+        # handful (which feels like the search is broken).
+        result = list(unseen[:safe_limit])
+        if len(result) < safe_limit:
+            needed = safe_limit - len(result)
+            result.extend(already_seen[:needed])
+        if not result:
+            result = list(filtered[:safe_limit])
+
+        if result:
+            with self._search_sessions_lock:
+                session = self._search_sessions.get(session_key)
+                if session is not None:
+                    for candidate in result:
+                        key = self._candidate_dedupe_key(candidate)
+                        if key:
+                            session.seen.add(key)
+
+        return result[:safe_limit]
 
     def list_characters(self) -> list[dict]:
         return self.store.list_characters()
@@ -413,15 +520,18 @@ class CharacterManagerService:
             return existing
 
         existing_identity = self._find_existing_by_identity(candidate)
-        should_merge_identity = existing_identity is not None and merge_strategy != "new"
-        if should_merge_identity:
+        if existing_identity is not None and merge_strategy != "new":
             record = self._merge_candidate_into_existing(existing_identity, candidate)
         else:
             record = self.store.add_character(
                 display_name=candidate.display_name,
-                aliases=candidate.aliases,
+                aliases=cast(list[object], list(candidate.aliases)),
                 source_title=candidate.source_title,
-                source_aliases=[candidate.source_title] if str(candidate.source_title).strip() else [],
+                source_aliases=(
+                    cast(list[object], [candidate.source_title])
+                    if str(candidate.source_title).strip()
+                    else []
+                ),
                 avatar_url=candidate.avatar_url,
                 provider=candidate.provider,
                 provider_entity_id=candidate.provider_entity_id,
@@ -711,9 +821,17 @@ class CharacterManagerService:
                             provider=provider,
                             provider_entity_id=provider_entity_id,
                         )
+
+                    resolved_urls: list[str] = []
+                    if isinstance(urls, list):
+                        for value in urls:
+                            text = str(value or "").strip()
+                            if text:
+                                resolved_urls.append(text)
+
                     added = self._append_reference_urls(
                         character_id,
-                        urls,
+                        resolved_urls,
                         identity_record=record,
                         identity_limit=remaining_limit,
                     )

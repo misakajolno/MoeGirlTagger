@@ -13,11 +13,13 @@ from PySide6.QtCore import QObject, Signal
 
 from apps.pyside.moegirl_tagger_gui_common import (
     DEFAULT_LANGUAGE,
+    DEFAULT_ONNX_PROVIDER,
     DEFAULT_THRESHOLDS,
     THRESHOLD_CLI_ARGS,
     THRESHOLD_MAX_VALUE,
     THRESHOLD_MIN_VALUE,
     TRANSLATIONS,
+    normalize_onnx_provider,
     normalize_path_key,
     normalize_language_code,
 )
@@ -38,6 +40,7 @@ class AnalysisWorker(QObject):
         thresholds: dict[str, float],
         language_code: str = "zh-CN",
         recognize_characters: bool = True,
+        onnx_provider: str = DEFAULT_ONNX_PROVIDER,
     ) -> None:
         """Initialize worker.
 
@@ -48,6 +51,7 @@ class AnalysisWorker(QObject):
             thresholds: Runtime threshold values.
             language_code: Preferred language for custom character labels.
             recognize_characters: Whether custom character recognition is enabled.
+            onnx_provider: ONNX Runtime provider preference.
         """
         super().__init__()
         self.repo_root = repo_root
@@ -56,6 +60,7 @@ class AnalysisWorker(QObject):
         self.thresholds = thresholds
         self.language_code = normalize_language_code(str(language_code or "").strip() or "zh-CN")
         self.recognize_characters = bool(recognize_characters)
+        self.onnx_provider = normalize_onnx_provider(onnx_provider)
         self.input_list_path: Path | None = None
         self._process: subprocess.Popen | None = None
         self._stop_requested = False
@@ -102,6 +107,11 @@ class AnalysisWorker(QObject):
                 self.language_code,
                 "--stream-records",
             ]
+            provider_value = self.onnx_provider
+            provider_override = str(os.environ.get("MOEGIRL_ONNX_PROVIDER", "")).strip()
+            if provider_override:
+                provider_value = normalize_onnx_provider(provider_override)
+            command.extend(["--onnx-provider", provider_value])
             for key, arg_name in THRESHOLD_CLI_ARGS.items():
                 raw_value = float(self.thresholds.get(key, DEFAULT_THRESHOLDS[key]))
                 threshold_value = min(THRESHOLD_MAX_VALUE, max(THRESHOLD_MIN_VALUE, raw_value))
