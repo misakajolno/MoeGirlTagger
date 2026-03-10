@@ -15,7 +15,11 @@ from urllib.parse import urlparse
 import requests
 
 from core.moegirl_tagger.character_search_provider import CharacterSearchProvider, SearchCandidate
-from core.moegirl_tagger.custom_character_store import CustomCharacterStore, canonical_source_key
+from core.moegirl_tagger.custom_character_store import (
+    CustomCharacterStore,
+    canonical_source_key,
+    normalize_source_alias_entries,
+)
 from core.moegirl_tagger.reference_identity_filter import ReferenceIdentityFilter
 
 
@@ -601,6 +605,171 @@ class CharacterManagerService:
     def set_enabled(self, character_id: str, enabled: bool) -> dict:
         return self.store.set_enabled(character_id, enabled=enabled)
 
+    def list_source_groups(self) -> list[dict]:
+        """List work groups strictly grouped by exact source_title."""
+        groups_by_title: dict[str, dict] = {}
+        for record in self.store.list_characters():
+            source_title = str(record.get("source_title", "")).strip()
+            if not source_title:
+                continue
+
+            group = groups_by_title.get(source_title)
+            if group is None:
+                group = {
+                    "source_key": source_title,
+                    "source_title": source_title,
+                    "source_aliases": [],
+                    "character_ids": [],
+                }
+                groups_by_title[source_title] = group
+
+            character_id = str(record.get("id", "")).strip()
+            if character_id and character_id not in group["character_ids"]:
+                group["character_ids"].append(character_id)
+
+            merged_aliases = normalize_source_alias_entries(source_title, record.get("source_aliases"))
+            existing_aliases = group.get("source_aliases", [])
+            alias_seen = {
+                (
+                    str(entry.get("name", "")).strip().casefold(),
+                    str(entry.get("language", "")).strip(),
+                )
+                for entry in existing_aliases
+                if isinstance(entry, dict)
+            }
+            for alias in merged_aliases:
+                if not isinstance(alias, dict):
+                    continue
+                alias_name = str(alias.get("name", "")).strip()
+                alias_language = str(alias.get("language", "")).strip()
+                if not alias_name:
+                    continue
+                alias_key = (alias_name.casefold(), alias_language)
+                if alias_key in alias_seen:
+                    continue
+                alias_seen.add(alias_key)
+                existing_aliases.append({"name": alias_name, "language": alias_language})
+            group["source_aliases"] = existing_aliases
+
+        groups = list(groups_by_title.values())
+        groups.sort(key=lambda item: str(item.get("source_title", "")).casefold())
+        for group in groups:
+            character_ids = [
+                str(value).strip()
+                for value in (group.get("character_ids") if isinstance(group.get("character_ids"), list) else [])
+                if str(value).strip()
+            ]
+            group["source_key"] = str(group.get("source_title", "")).strip()
+            group["character_ids"] = character_ids
+            group["character_count"] = len(character_ids)
+        return groups
+
+    def update_source_aliases_by_title(
+        self,
+        *,
+        source_title: str,
+        source_aliases: list[dict],
+        character_ids: list[str] | None = None,
+    ) -> int:
+        """Update source_aliases for all characters that share one source_title."""
+        normalized_title = str(source_title or "").strip()
+        if not normalized_title:
+            return 0
+
+        normalized_aliases = normalize_source_alias_entries(normalized_title, source_aliases)
+        if not normalized_aliases:
+            normalized_aliases = normalize_source_alias_entries(normalized_title, [normalized_title])
+        if not normalized_aliases:
+            return 0
+
+        target_character_ids = {
+            str(value).strip()
+            for value in (character_ids if isinstance(character_ids, list) else [])
+            if str(value).strip()
+        }
+
+        updated_count = 0
+        for record in self.store.list_characters():
+            record_id = str(record.get("id", "")).strip()
+            record_source_title = str(record.get("source_title", "")).strip()
+            if not record_id or not record_source_title:
+                continue
+            if target_character_ids and record_id not in target_character_ids:
+                continue
+            if record_source_title != normalized_title:
+                continue
+            self.store.update_character(
+                record_id,
+                source_aliases=list(normalized_aliases),
+            )
+            updated_count += 1
+        return updated_count
+
+    def rename_source_title(
+        self,
+        *,
+        source_title: str,
+        new_source_title: str,
+        character_ids: list[str] | None = None,
+    ) -> int:
+        """Rename source_title for all matched characters."""
+        old_title = str(source_title or "").strip()
+        normalized_new_title = str(new_source_title or "").strip()
+        if not old_title or not normalized_new_title or old_title == normalized_new_title:
+            return 0
+
+        target_character_ids = {
+            str(value).strip()
+            for value in (character_ids if isinstance(character_ids, list) else [])
+            if str(value).strip()
+        }
+
+        updated_count = 0
+        for record in self.store.list_characters():
+            record_id = str(record.get("id", "")).strip()
+            record_source_title = str(record.get("source_title", "")).strip()
+            if not record_id or not record_source_title:
+                continue
+            if target_character_ids and record_id not in target_character_ids:
+                continue
+            if record_source_title != old_title:
+                continue
+            self.store.update_character(
+                record_id,
+                source_title=normalized_new_title,
+                source_aliases=record.get("source_aliases"),
+            )
+            updated_count += 1
+        return updated_count
+
+    def update_source_group(
+        self,
+        source_key: str,
+        source_title: str,
+        source_aliases: list[dict],
+        character_ids: list[str] | None = None,
+    ) -> int:
+        """Backward-compatible wrapper for legacy source-group updates."""
+        old_title = str(source_key or "").strip()
+        target_title = str(source_title or "").strip() or old_title
+        if not target_title:
+            return 0
+
+        renamed_count = 0
+        if old_title and old_title != target_title:
+            renamed_count = self.rename_source_title(
+                source_title=old_title,
+                new_source_title=target_title,
+                character_ids=character_ids,
+            )
+
+        alias_updated = self.update_source_aliases_by_title(
+            source_title=target_title,
+            source_aliases=source_aliases,
+            character_ids=character_ids,
+        )
+        return alias_updated if alias_updated > 0 else renamed_count
+
     def _append_reference_urls(
         self,
         character_id: str,
@@ -787,12 +956,6 @@ class CharacterManagerService:
                     continue
 
                 try:
-                    pruned_count = self._prune_existing_references_by_identity(record)
-                    if pruned_count > 0:
-                        summary["pruned_references"] += int(pruned_count)
-                        refreshed = self.store.get_character(character_id)
-                        if isinstance(refreshed, dict):
-                            record = refreshed
                     existing_references = [
                         value
                         for value in record.get("reference_images", [])

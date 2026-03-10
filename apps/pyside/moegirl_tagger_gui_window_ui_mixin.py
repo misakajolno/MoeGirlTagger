@@ -47,7 +47,7 @@ from apps.pyside.moegirl_tagger_gui_common import (
     normalize_language_code,
     normalize_onnx_provider,
 )
-from apps.pyside.moegirl_tagger_gui_list import ImageListDelegate, ImageListView
+from apps.pyside.moegirl_tagger_gui_list import CharacterListDelegate, ImageListDelegate, ImageListView
 from apps.pyside.moegirl_tagger_gui_styles import build_window_qss
 from apps.pyside.moegirl_tagger_gui_workers import CorrelationProfileRebuildWorker
 from apps.pyside.moegirl_tagger_gui_widgets import CapsuleSwitch, DragBar, PreviewCanvas
@@ -140,8 +140,7 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_bulk_button.clicked.connect(self._start_bulk_character_build)
         self.character_import_button.clicked.connect(self._import_selected_character)
         self.character_delete_button.clicked.connect(self._request_delete_selected_character)
-        self.character_add_refs_button.clicked.connect(self._append_selected_character_references)
-        self.character_refresh_button.clicked.connect(self._reload_character_library_list)
+        self.character_edit_work_button.clicked.connect(self._open_work_editor_dialog)
 
         self._switch_right_page(0)
         self._reload_character_library_list()
@@ -253,16 +252,16 @@ class MoeGirlTaggerWindowUiMixin:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
 
-        card = QFrame()
-        card.setObjectName("Card")
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(16, 16, 16, 16)
-        card_layout.setSpacing(10)
-        layout.addWidget(card, 1)
+        top_card = QFrame()
+        top_card.setObjectName("Card")
+        top_layout = QVBoxLayout(top_card)
+        top_layout.setContentsMargins(16, 16, 16, 16)
+        top_layout.setSpacing(10)
+        layout.addWidget(top_card, 0)
 
         self.character_page_title_label = QLabel()
         self.character_page_title_label.setObjectName("SettingsTitle")
-        card_layout.addWidget(self.character_page_title_label)
+        top_layout.addWidget(self.character_page_title_label)
 
         search_row = QHBoxLayout()
         search_row.setContentsMargins(0, 0, 0, 0)
@@ -279,54 +278,26 @@ class MoeGirlTaggerWindowUiMixin:
         search_row.addWidget(self.character_search_button, 0)
         search_row.addWidget(self.character_library_search_input, 1)
         search_row.addWidget(self.character_library_search_button, 0)
-        card_layout.addLayout(search_row)
-
-        bulk_row = QHBoxLayout()
-        bulk_row.setContentsMargins(0, 0, 0, 0)
-        bulk_row.setSpacing(8)
-        self.character_bulk_label = QLabel()
-        self.character_bulk_label.setObjectName("SettingsHint")
-        self.character_bulk_count_spin = QSpinBox()
-        self.character_bulk_count_spin.setObjectName("ThresholdInput")
-        self.character_bulk_count_spin.setRange(1, 10)
-        self.character_bulk_count_spin.setSingleStep(1)
-        self.character_bulk_count_spin.setValue(5)
-        self.character_bulk_count_spin.setFixedWidth(110)
-        self.character_bulk_button = QPushButton()
-        self.character_bulk_button.setObjectName("PrimaryButton")
-        bulk_row.addWidget(self.character_bulk_label)
-        bulk_row.addWidget(self.character_bulk_count_spin, 0)
-        bulk_row.addWidget(self.character_bulk_button, 0)
-        bulk_row.addStretch(1)
-        card_layout.addLayout(bulk_row)
-        self.character_bulk_progress = QProgressBar()
-        self.character_bulk_progress.setObjectName("CharacterBulkProgress")
-        self.character_bulk_progress.setTextVisible(True)
-        self.character_bulk_progress.setFixedHeight(18)
-        card_layout.addWidget(self.character_bulk_progress)
-        self._reset_character_bulk_progress()
+        top_layout.addLayout(search_row)
 
         actions_row = QHBoxLayout()
         actions_row.setContentsMargins(0, 0, 0, 0)
         actions_row.setSpacing(8)
         self.character_import_button = QPushButton()
         self.character_import_button.setObjectName("PrimaryButton")
-        self.character_add_refs_button = QPushButton()
-        self.character_add_refs_button.setObjectName("SecondaryButton")
         self.character_delete_button = QPushButton()
         self.character_delete_button.setObjectName("DangerButton")
-        self.character_refresh_button = QPushButton()
-        self.character_refresh_button.setObjectName("SecondaryButton")
+        self.character_edit_work_button = QPushButton()
+        self.character_edit_work_button.setObjectName("SecondaryButton")
         actions_row.addWidget(self.character_import_button)
-        actions_row.addWidget(self.character_refresh_button)
         actions_row.addStretch(1)
-        actions_row.addWidget(self.character_add_refs_button)
+        actions_row.addWidget(self.character_edit_work_button)
         actions_row.addWidget(self.character_delete_button)
-        card_layout.addLayout(actions_row)
+        top_layout.addLayout(actions_row)
 
-        list_splitter = QSplitter(Qt.Horizontal)
-        list_splitter.setChildrenCollapsible(False)
-        list_splitter.setHandleWidth(10)
+        list_row = QHBoxLayout()
+        list_row.setContentsMargins(0, 0, 0, 0)
+        list_row.setSpacing(12)
 
         search_card = QFrame()
         search_card.setObjectName("Card")
@@ -338,8 +309,9 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_search_list = QListWidget()
         self.character_search_list.setObjectName("CharacterSearchList")
         self.character_search_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.character_search_list.setIconSize(QSize(46, 46))
-        self.character_search_list.setSpacing(2)
+        self.character_search_list.setIconSize(QSize(58, 58))
+        self.character_search_list.setItemDelegate(CharacterListDelegate(self.character_search_list))
+        self.character_search_list.setSpacing(6)
         search_layout.addWidget(self.character_search_results_label)
         search_layout.addWidget(self.character_search_list, 1)
         self.character_search_select_all_shortcut = QShortcut(QKeySequence.SelectAll, self.character_search_list)
@@ -355,10 +327,57 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_library_list = QListWidget()
         self.character_library_list.setObjectName("CharacterLibraryList")
         self.character_library_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.character_library_list.setIconSize(QSize(46, 46))
-        self.character_library_list.setSpacing(2)
+        self.character_library_list.setIconSize(QSize(58, 58))
+        self.character_library_list.setItemDelegate(CharacterListDelegate(self.character_library_list))
+        self.character_library_list.setSpacing(6)
         local_layout.addWidget(self.character_library_label)
         local_layout.addWidget(self.character_library_list, 1)
+
+        self.character_bulk_label = QLabel()
+        self.character_bulk_label.setObjectName("SettingsHint")
+        self.character_bulk_count_spin = QSpinBox()
+        self.character_bulk_count_spin.setObjectName("ThresholdInput")
+        self.character_bulk_count_spin.setRange(1, 10)
+        self.character_bulk_count_spin.setSingleStep(1)
+        self.character_bulk_count_spin.setValue(5)
+        self.character_bulk_count_spin.setFixedWidth(110)
+        self.character_bulk_button = QPushButton()
+        self.character_bulk_button.setObjectName("PrimaryButton")
+
+        self.character_bulk_footer = QWidget()
+        self.character_bulk_footer.setObjectName("CharacterBulkFooter")
+        bulk_footer_layout = QVBoxLayout(self.character_bulk_footer)
+        bulk_footer_layout.setContentsMargins(0, 6, 0, 0)
+        bulk_footer_layout.setSpacing(4)
+
+        bulk_row = QHBoxLayout()
+        bulk_row.setContentsMargins(0, 0, 0, 0)
+        bulk_row.setSpacing(8)
+        bulk_row.addStretch(1)
+        bulk_row.addWidget(self.character_bulk_label, 0, Qt.AlignRight)
+        bulk_row.addWidget(self.character_bulk_count_spin, 0)
+        bulk_row.addWidget(self.character_bulk_button, 0)
+        bulk_footer_layout.addLayout(bulk_row)
+
+        self.character_bulk_progress_container = QWidget()
+        self.character_bulk_progress_container.setObjectName("CharacterBulkProgressContainer")
+        bulk_progress_layout = QVBoxLayout(self.character_bulk_progress_container)
+        bulk_progress_layout.setContentsMargins(0, 0, 0, 0)
+        bulk_progress_layout.setSpacing(2)
+        self.character_bulk_progress_value_label = QLabel("0 / 0")
+        self.character_bulk_progress_value_label.setObjectName("CharacterBulkProgressValue")
+        self.character_bulk_progress_value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.character_bulk_progress = QProgressBar()
+        self.character_bulk_progress.setObjectName("CharacterBulkProgress")
+        self.character_bulk_progress.setTextVisible(False)
+        self.character_bulk_progress.setFixedHeight(6)
+        self.character_bulk_progress.setFixedWidth(280)
+        bulk_progress_layout.addWidget(self.character_bulk_progress_value_label, 0, Qt.AlignRight)
+        bulk_progress_layout.addWidget(self.character_bulk_progress, 0, Qt.AlignRight)
+        bulk_footer_layout.addWidget(self.character_bulk_progress_container, 0, Qt.AlignRight)
+        local_layout.addWidget(self.character_bulk_footer, 0)
+        self._reset_character_bulk_progress()
+
         self.character_library_select_all_shortcut = QShortcut(QKeySequence.SelectAll, self.character_library_list)
         self.character_library_select_all_shortcut.activated.connect(self.character_library_list.selectAll)
         self.character_library_delete_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), self.character_library_list)
@@ -369,12 +388,9 @@ class MoeGirlTaggerWindowUiMixin:
         )
         self.character_library_delete_fast_shortcut.activated.connect(self._quick_delete_selected_character)
 
-        list_splitter.addWidget(search_card)
-        list_splitter.addWidget(local_card)
-        list_splitter.setStretchFactor(0, 1)
-        list_splitter.setStretchFactor(1, 1)
-        list_splitter.setSizes([620, 620])
-        card_layout.addWidget(list_splitter, 1)
+        list_row.addWidget(search_card, 1)
+        list_row.addWidget(local_card, 1)
+        layout.addLayout(list_row, 1)
 
         return page
 
@@ -717,6 +733,20 @@ class MoeGirlTaggerWindowUiMixin:
         """Hide toast label."""
         self.toast_label.hide()
 
+    def _sync_character_search_input_heights(self) -> None:
+        """Match character search inputs to the actual height of their adjacent buttons."""
+        pairs = (
+            (getattr(self, "character_search_input", None), getattr(self, "character_search_button", None)),
+            (getattr(self, "character_library_search_input", None), getattr(self, "character_library_search_button", None)),
+        )
+        for input_widget, button in pairs:
+            if input_widget is None or button is None:
+                continue
+            button.ensurePolished()
+            input_widget.ensurePolished()
+            target_height = max(1, int(button.sizeHint().height()))
+            input_widget.setFixedHeight(target_height)
+
     def _apply_language(self) -> None:
         """Refresh all user-facing static UI text."""
         self.analysis_menu_button.setText("")
@@ -752,9 +782,8 @@ class MoeGirlTaggerWindowUiMixin:
         self.character_bulk_label.setText(self._tr("character_bulk_count_label"))
         self.character_bulk_button.setText(self._tr("character_bulk_build_button"))
         self.character_import_button.setText(self._tr("character_import_button"))
-        self.character_add_refs_button.setText(self._tr("character_add_refs_button"))
         self.character_delete_button.setText(self._tr("character_delete_button"))
-        self.character_refresh_button.setText(self._tr("character_refresh_button"))
+        self.character_edit_work_button.setText(self._tr("character_edit_work_button"))
         self.character_search_results_label.setText(self._tr("character_search_results_title"))
         self.character_library_label.setText(self._tr("character_library_title"))
 
@@ -795,6 +824,7 @@ class MoeGirlTaggerWindowUiMixin:
             self._reload_character_library_list()
         if hasattr(self, "_refresh_feature_text_language"):
             self._refresh_feature_text_language()
+        self._sync_character_search_input_heights()
 
     def _apply_effects(self) -> None:
         """Apply drop shadow effects for modern floating look."""
@@ -810,3 +840,4 @@ class MoeGirlTaggerWindowUiMixin:
         spin_up_icon = str(SPIN_UP_ICON_PATH.resolve()).replace("\\", "/")
         spin_down_icon = str(SPIN_DOWN_ICON_PATH.resolve()).replace("\\", "/")
         self.setStyleSheet(build_window_qss(spin_up_icon, spin_down_icon))
+        self._sync_character_search_input_heights()

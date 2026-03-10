@@ -311,3 +311,84 @@ class ImageListDelegate(QStyledItemDelegate):
             tags = [tag.strip() for tag in part.replace("，", "、").replace(",", "、").split("、") if tag.strip()]
             result.append((None, tags))
         return result
+
+
+class CharacterListDelegate(QStyledItemDelegate):
+    """Custom row renderer for character library and search result lists."""
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._row_height = 76
+        self._avatar_size = 58
+        self._font = QFont()
+        self._font.setPointSize(12)
+        self._font.setWeight(QFont.DemiBold)
+
+    def sizeHint(self, option, index) -> QSize:
+        _ = option
+        _ = index
+        return QSize(0, self._row_height)
+
+    def paint(self, painter: QPainter, option, index) -> None:
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing, True)
+
+        selected = bool(option.state & QStyle.State_Selected)
+        hovered = bool(option.state & QStyle.State_MouseOver)
+        item_rect = option.rect
+        row_rect = QRectF(item_rect.adjusted(8, 0, -8, 0))
+
+        background_color = QColor("#f8faff")
+        border_color = QColor(0, 0, 0, 0)
+        text_color = QColor("#1d2430")
+        if hovered:
+            background_color = QColor("#eef4ff")
+            border_color = QColor("#d3e2ff")
+        if selected:
+            background_color = QColor("#e8f1ff")
+            border_color = QColor("#bcd1ff")
+            text_color = QColor("#1f4f96")
+
+        background_path = QPainterPath()
+        background_path.addRoundedRect(row_rect, 12, 12)
+        painter.fillPath(background_path, background_color)
+        painter.setPen(border_color)
+        painter.drawPath(background_path)
+
+        if selected:
+            indicator_rect = QRectF(
+                row_rect.left() + 4.0,
+                row_rect.top() + max(0.0, (row_rect.height() - 30.0) / 2.0),
+                4.0,
+                30.0,
+            )
+            indicator_path = QPainterPath()
+            indicator_path.addRoundedRect(indicator_rect, 2.0, 2.0)
+            painter.fillPath(indicator_path, QColor("#4a8cff"))
+
+        avatar_rect = QRect(
+            int(round(row_rect.left() + 12.0)),
+            int(round(row_rect.top() + max(0.0, (row_rect.height() - self._avatar_size) / 2.0))),
+            self._avatar_size,
+            self._avatar_size,
+        )
+        icon = index.data(Qt.DecorationRole)
+        if isinstance(icon, QIcon) and not icon.isNull():
+            pixmap = icon.pixmap(self._avatar_size, self._avatar_size)
+            if not pixmap.isNull():
+                painter.drawPixmap(avatar_rect, pixmap)
+
+        text_left = avatar_rect.right() + 16
+        text_rect = QRectF(
+            float(text_left),
+            row_rect.top(),
+            max(0.0, row_rect.right() - float(text_left) - 14.0),
+            row_rect.height(),
+        )
+        painter.setFont(self._font)
+        painter.setPen(text_color)
+        metrics = painter.fontMetrics()
+        text = metrics.elidedText(str(index.data(Qt.DisplayRole) or ""), Qt.ElideRight, int(text_rect.width()))
+        painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, text)
+
+        painter.restore()

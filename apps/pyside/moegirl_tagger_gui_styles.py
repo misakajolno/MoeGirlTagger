@@ -84,6 +84,16 @@ def build_window_qss(spin_up_icon: str, spin_down_icon: str) -> str:
         QLabel#SettingsSectionTitle { color: #273142; font-weight: 600; font-size: 14px; margin-top: 2px; }
         QLabel#SettingsHint { color: #617188; }
         QLabel#SettingsVersionLabel { color: #8e99ab; }
+        QLineEdit#CharacterSearchInput {
+            background: #ffffff;
+            border: 1px solid #d6dfec;
+            border-radius: 11px;
+            min-height: 31px;
+            max-height: 31px;
+            padding: 0 12px;
+            font-size: 16px;
+        }
+        QLineEdit#CharacterSearchInput:focus { border: 1px solid #87a9eb; }
         QPushButton#SettingsLinkButton {
             background: transparent;
             border: none;
@@ -93,16 +103,21 @@ def build_window_qss(spin_up_icon: str, spin_down_icon: str) -> str:
         }
         QPushButton#SettingsLinkButton:hover { color: #1f6ee6; }
         QPushButton#SettingsLinkButton:pressed { color: #145bc0; }
+        QWidget#CharacterBulkFooter,
+        QWidget#CharacterBulkProgressContainer { background: transparent; }
+        QLabel#CharacterBulkProgressValue {
+            color: #6f7d91;
+            font-size: 12px;
+            font-weight: 600;
+        }
         QProgressBar#CharacterBulkProgress {
-            background: #ecf1fb;
-            border: 1px solid #d2ddef;
-            border-radius: 8px;
-            color: #2f3c54;
-            text-align: center;
+            background: #dde6f4;
+            border: none;
+            border-radius: 3px;
         }
         QProgressBar#CharacterBulkProgress::chunk {
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4d93ff, stop:1 #2f7efb);
-            border-radius: 7px;
+            border-radius: 3px;
         }
         QLabel#ThresholdName { color: #2e394b; }
         QLabel#ThresholdRange { color: #8491a3; }
@@ -178,6 +193,30 @@ def build_window_qss(spin_up_icon: str, spin_down_icon: str) -> str:
             border: none;
         }
         QListView#ImageList::item:selected {
+            background: transparent;
+            border: none;
+        }
+        QListWidget#CharacterSearchList,
+        QListWidget#CharacterLibraryList {
+            background: transparent;
+            border: none;
+            outline: none;
+            show-decoration-selected: 1;
+        }
+        QListWidget#CharacterSearchList::item,
+        QListWidget#CharacterLibraryList::item {
+            background: transparent;
+            border: none;
+            margin: 0px;
+            padding: 0px;
+        }
+        QListWidget#CharacterSearchList::item:hover,
+        QListWidget#CharacterLibraryList::item:hover {
+            background: transparent;
+            border: none;
+        }
+        QListWidget#CharacterSearchList::item:selected,
+        QListWidget#CharacterLibraryList::item:selected {
             background: transparent;
             border: none;
         }

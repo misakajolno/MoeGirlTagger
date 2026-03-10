@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPushButton,
@@ -112,6 +113,7 @@ class _TagToken:
     kind: str
     value: str
     display_text: str
+    search_text: str
 
 
 class _TagSourceTree(QTreeWidget):
@@ -277,6 +279,7 @@ class TagEditorDialog(QDialog):
         title: str,
         left_title: str,
         right_title: str,
+        search_placeholder: str,
         rules_text: str,
         apply_text: str,
         cancel_text: str,
@@ -329,10 +332,22 @@ class TagEditorDialog(QDialog):
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(10, 10, 10, 10)
         left_layout.setSpacing(6)
+        left_header = QHBoxLayout()
+        left_header.setContentsMargins(0, 0, 0, 0)
+        left_header.setSpacing(8)
+
         left_caption = QLabel(left_title)
         left_caption.setObjectName("TagEditorPanelTitle")
+        self.search_input = QLineEdit(left_panel)
+        self.search_input.setObjectName("TagEditorSearchInput")
+        self.search_input.setPlaceholderText(search_placeholder)
+        self.search_input.setClearButtonEnabled(True)
+
+        left_header.addWidget(left_caption)
+        left_header.addWidget(self.search_input, 1)
+
         self.source_tree = _TagSourceTree(left_panel)
-        left_layout.addWidget(left_caption)
+        left_layout.addLayout(left_header)
         left_layout.addWidget(self.source_tree, 1)
 
         right_panel = QFrame()
@@ -411,6 +426,18 @@ class TagEditorDialog(QDialog):
                 font-size: 13px;
                 font-weight: 700;
             }
+            QLineEdit#TagEditorSearchInput {
+                min-height: 28px;
+                background: #ffffff;
+                border: 1px solid #d4ddeb;
+                border-radius: 8px;
+                color: #2d3a50;
+                padding: 0 10px;
+                font-size: 12px;
+            }
+            QLineEdit#TagEditorSearchInput:focus {
+                border: 1px solid #6ea2ff;
+            }
             QLabel#TagEditorRules {
                 color: #5f6f88;
                 background: #eef3fc;
@@ -481,11 +508,13 @@ class TagEditorDialog(QDialog):
         self.source_tree.tokenAddRequested.connect(self._add_token)
         self.source_tree.tokenRemoveRequested.connect(self._remove_token)
         self.source_tree.itemClicked.connect(self._on_source_item_clicked)
+        self.search_input.textChanged.connect(self._on_search_text_changed)
         self.selected_list.tokenAddRequested.connect(self._add_token)
         self.selected_list.tokenRemoveRequested.connect(self._remove_token)
 
         self._populate_source_tree(feature_groups, character_groups)
         self._apply_initial_selection(initial_feature_tags, initial_characters)
+        self._apply_source_filter("")
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -534,6 +563,9 @@ class TagEditorDialog(QDialog):
         top_item = QTreeWidgetItem([group_name])
         top_item.setFlags(Qt.ItemIsEnabled)
         top_item.setData(0, Qt.UserRole, "")
+        group_font = top_item.font(0)
+        group_font.setBold(True)
+        top_item.setFont(0, group_font)
         self.source_tree.addTopLevelItem(top_item)
 
         items = group.get("items")
@@ -547,11 +579,18 @@ class TagEditorDialog(QDialog):
             if not value:
                 continue
             token_key = f"{kind}:{value}"
+            token_value = str(entry.get("store_value", "")).strip() or value
+            search_terms: list[str] = [display, value, token_value]
+            aliases = entry.get("aliases", [])
+            if isinstance(aliases, list):
+                search_terms.extend(str(alias).strip() for alias in aliases if str(alias).strip())
+            search_text = " ".join(dict.fromkeys(term.casefold() for term in search_terms if term.strip()))
             token = _TagToken(
                 token_key=token_key,
                 kind=kind,
-                value=str(entry.get("store_value", "")).strip() or value,
+                value=token_value,
                 display_text=display,
+                search_text=search_text,
             )
             self._token_by_key[token_key] = token
 
@@ -574,6 +613,13 @@ class TagEditorDialog(QDialog):
     def _on_source_item_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
         if item.parent() is not None:
             return
+
+        search_keyword = str(self.search_input.text() if hasattr(self, "search_input") else "").strip()
+        if search_keyword:
+            item.setExpanded(True)
+            self.source_tree.scrollToItem(item, QAbstractItemView.PositionAtTop)
+            return
+
         should_expand = not item.isExpanded()
         for index in range(self.source_tree.topLevelItemCount()):
             candidate = self.source_tree.topLevelItem(index)
@@ -583,6 +629,55 @@ class TagEditorDialog(QDialog):
             return
         item.setExpanded(True)
         self.source_tree.scrollToItem(item, QAbstractItemView.PositionAtTop)
+
+    def _on_search_text_changed(self, _text: str) -> None:
+        self._apply_source_filter(str(self.search_input.text()))
+
+    def _is_source_item_match(self, token_key: str, fallback_text: str, keyword: str) -> bool:
+        if not keyword:
+            return True
+        token = self._token_by_key.get(token_key)
+        if token is not None and keyword in token.search_text:
+            return True
+        return keyword in str(fallback_text).casefold()
+
+    def _apply_source_filter(self, text: str) -> None:
+        keyword = str(text or "").strip().casefold()
+        if not keyword:
+            for index in range(self.source_tree.topLevelItemCount()):
+                top_item = self.source_tree.topLevelItem(index)
+                if top_item is None:
+                    continue
+                top_item.setHidden(False)
+                top_item.setExpanded(False)
+                for child_index in range(top_item.childCount()):
+                    child_item = top_item.child(child_index)
+                    if child_item is not None:
+                        child_item.setHidden(False)
+            return
+
+        for index in range(self.source_tree.topLevelItemCount()):
+            top_item = self.source_tree.topLevelItem(index)
+            if top_item is None:
+                continue
+
+            group_text = str(top_item.text(0) or "").casefold()
+            group_match = bool(group_text and keyword in group_text)
+            has_visible_child = False
+
+            for child_index in range(top_item.childCount()):
+                child_item = top_item.child(child_index)
+                if child_item is None:
+                    continue
+                token_key = str(child_item.data(0, Qt.UserRole) or "").strip()
+                child_text = str(child_item.text(0) or "")
+                matched = group_match or self._is_source_item_match(token_key, child_text, keyword)
+                child_item.setHidden(not matched)
+                if matched:
+                    has_visible_child = True
+
+            top_item.setHidden(not has_visible_child)
+            top_item.setExpanded(has_visible_child)
 
     def _add_token(self, token_key: str) -> None:
         if not _is_valid_qt_object(self):

@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
 
 from PySide6.QtCore import QSize, Qt, QThread
 from PySide6.QtGui import QIcon, QPainter, QPainterPath, QPixmap
-from PySide6.QtWidgets import QDialog, QFileDialog, QListWidgetItem
+from PySide6.QtWidgets import QDialog, QListWidgetItem
 
-from apps.pyside.moegirl_tagger_gui_dialogs import CharacterMergeConfirmDialog, ClearTagsConfirmDialog
+from apps.pyside.moegirl_tagger_gui_dialogs import (
+    CharacterMergeConfirmDialog,
+    ClearTagsConfirmDialog,
+    ThemedDecisionDialog,
+    WorkAliasEditorDialog,
+    WorkListDialog,
+    WorkTitleEditorDialog,
+)
+from apps.pyside.moegirl_tagger_gui_common import LANGUAGE_OPTIONS
 from apps.pyside.moegirl_tagger_gui_workers import (
     CharacterBulkBuildWorker,
     CharacterDeleteWorker,
@@ -17,7 +24,10 @@ from apps.pyside.moegirl_tagger_gui_workers import (
     CharacterSearchWorker,
 )
 from core.moegirl_tagger.character_search_provider import SearchCandidate
-from core.moegirl_tagger.custom_character_store import select_localized_alias, select_localized_source_title
+from core.moegirl_tagger.custom_character_store import (
+    select_localized_alias,
+    select_localized_source_title,
+)
 
 
 def resolve_character_library_row(preferred_row: int | None, item_count: int) -> int:
@@ -59,7 +69,7 @@ def resolve_character_delete_anchor_row(current_row: int, selected_rows: list[in
     return 0
 
 
-def build_top_cover_rounded_avatar(source: QPixmap, *, size: int = 46, radius: int = 8) -> QPixmap:
+def build_top_cover_rounded_avatar(source: QPixmap, *, size: int = 58, radius: int = 8) -> QPixmap:
     """Render avatar as square cover image cropped from top with rounded corners."""
     edge = max(1, int(size))
     rounded = max(0.0, min(float(radius), float(edge) / 2.0))
@@ -157,7 +167,7 @@ class MoeGirlTaggerWindowCharacterMixin:
             size = library_list.iconSize()
             if size.width() > 0 and size.height() > 0:
                 return max(1, min(int(size.width()), int(size.height())))
-        return 46
+        return 58
 
     def _build_character_avatar_icon(self, pixmap: QPixmap) -> QIcon:
         if pixmap.isNull():
@@ -200,7 +210,7 @@ class MoeGirlTaggerWindowCharacterMixin:
                 url = str(candidate.avatar_url).strip()
                 if url:
                     self.character_icon_cache[url] = icon
-            item.setSizeHint(QSize(0, 50))
+            item.setSizeHint(QSize(0, 76))
             self.character_search_list.addItem(item)
         if self.character_search_list.count() > 0:
             self.character_search_list.setCurrentRow(0)
@@ -252,7 +262,7 @@ class MoeGirlTaggerWindowCharacterMixin:
                     icon = self._build_character_avatar_icon(pixmap)
                     if not icon.isNull():
                         item.setIcon(icon)
-            item.setSizeHint(QSize(0, 50))
+            item.setSizeHint(QSize(0, 76))
             self.character_library_list.addItem(item)
         target_row = resolve_character_library_row(preferred_row, self.character_library_list.count())
         if target_row >= 0:
@@ -351,6 +361,295 @@ class MoeGirlTaggerWindowCharacterMixin:
             result.append(character_id)
         return result
 
+
+    def _build_source_group_display_name(self, group: dict) -> str:
+        source_title = str(group.get("source_title", "")).strip()
+        return source_title or "-"
+
+    def _collect_work_dialog_items(self) -> list[dict]:
+        groups = self.character_manager_service.list_source_groups()
+        dialog_items: list[dict] = []
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            source_title = str(group.get("source_title", "")).strip()
+            if not source_title:
+                continue
+            item = dict(group)
+            item["source_key"] = source_title
+            item["display_name"] = source_title
+            source_aliases = item.get("source_aliases")
+            item["source_aliases"] = list(source_aliases) if isinstance(source_aliases, list) else []
+            character_ids = item.get("character_ids")
+            item["character_ids"] = [
+                str(value).strip()
+                for value in (character_ids if isinstance(character_ids, list) else [])
+                if str(value).strip()
+            ]
+            item["character_count"] = int(item.get("character_count", len(item["character_ids"])) or len(item["character_ids"]))
+            dialog_items.append(item)
+        dialog_items.sort(key=lambda entry: str(entry.get("source_title", "")).casefold())
+        return dialog_items
+
+    @staticmethod
+    def _alias_entries_as_map(aliases: list[dict]) -> dict[tuple[str, str], str]:
+        result: dict[tuple[str, str], str] = {}
+        for entry in aliases if isinstance(aliases, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name", "")).strip()
+            language = str(entry.get("language", "")).strip()
+            if not name:
+                continue
+            key = (name.casefold(), language)
+            if key in result:
+                continue
+            result[key] = f"[{language or '-'}] {name}"
+        return result
+
+    def _format_source_alias_diff_text(self, current_aliases: list[dict], existing_aliases: list[dict]) -> str:
+        current_map = self._alias_entries_as_map(current_aliases)
+        existing_map = self._alias_entries_as_map(existing_aliases)
+
+        current_only = [current_map[key] for key in current_map if key not in existing_map]
+        existing_only = [existing_map[key] for key in existing_map if key not in current_map]
+
+        lines: list[str] = []
+        lines.append("当前别名：")
+        if current_map:
+            lines.extend(f"- {value}" for value in sorted(current_map.values(), key=str.casefold))
+        else:
+            lines.append("- （空）")
+
+        lines.append("")
+        lines.append("已有别名：")
+        if existing_map:
+            lines.extend(f"- {value}" for value in sorted(existing_map.values(), key=str.casefold))
+        else:
+            lines.append("- （空）")
+
+        lines.append("")
+        lines.append("差异：")
+        if current_only:
+            lines.append("仅当前有（将新增/覆盖）：")
+            lines.extend(f"+ {value}" for value in sorted(current_only, key=str.casefold))
+        if existing_only:
+            lines.append("仅已有中存在（可能被移除）：")
+            lines.extend(f"- {value}" for value in sorted(existing_only, key=str.casefold))
+        if not current_only and not existing_only:
+            lines.append("两侧别名完全一致。")
+        return "\n".join(lines)
+
+    def _confirm_source_title_overwrite(
+        self,
+        *,
+        target_title: str,
+        current_aliases: list[dict],
+        existing_aliases: list[dict],
+    ) -> bool:
+        first_confirm = ThemedDecisionDialog(
+            self,
+            title=self._tr("dialog_work_title_conflict_title"),
+            message=self._tr("dialog_work_title_conflict_message", name=target_title),
+            confirm_text=self._tr("dialog_work_title_conflict_confirm"),
+            cancel_text=self._tr("dialog_work_title_conflict_cancel"),
+            close_tooltip=self._tr("dialog_close_tooltip"),
+        )
+        if first_confirm.exec() != QDialog.Accepted:
+            return False
+
+        diff_text = self._format_source_alias_diff_text(current_aliases, existing_aliases)
+        overwrite_confirm = ThemedDecisionDialog(
+            self,
+            title=self._tr("dialog_work_title_overwrite_alias_title"),
+            message=self._tr("dialog_work_title_overwrite_alias_message", name=target_title),
+            hint_text=self._tr("dialog_work_title_overwrite_alias_hint"),
+            details_text=diff_text,
+            confirm_text=self._tr("dialog_work_title_overwrite_confirm"),
+            cancel_text=self._tr("dialog_work_title_overwrite_cancel"),
+            close_tooltip=self._tr("dialog_close_tooltip"),
+        )
+        return overwrite_confirm.exec() == QDialog.Accepted
+
+    def _edit_source_group_aliases(self, group: dict) -> dict | None:
+        source_title = str(group.get("source_title", "")).strip()
+        if not source_title:
+            return None
+
+        aliases = group.get("source_aliases") if isinstance(group.get("source_aliases"), list) else []
+        editor = WorkAliasEditorDialog(
+            self,
+            title=self._tr("dialog_work_alias_title"),
+            close_tooltip=self._tr("dialog_close_tooltip"),
+            add_alias_text=self._tr("dialog_work_alias_add"),
+            save_text=self._tr("dialog_work_alias_save"),
+            language_options=list(LANGUAGE_OPTIONS),
+            aliases=list(aliases),
+            current_language=self.current_language,
+            validation_error_text=self._tr("status_character_work_alias_required"),
+        )
+        if editor.exec() != QDialog.Accepted:
+            return None
+
+        source_aliases = editor.result_payload()
+        try:
+            updated_count = int(
+                self.character_manager_service.update_source_aliases_by_title(
+                    source_title=source_title,
+                    source_aliases=source_aliases,
+                    character_ids=list(group.get("character_ids", [])) if isinstance(group.get("character_ids"), list) else [],
+                )
+            )
+        except Exception as error:
+            self._set_status(self._tr("status_character_work_update_failed", error=str(error)), is_error=True)
+            return None
+
+        if updated_count <= 0:
+            self._set_status(
+                self._tr("status_character_work_update_failed", error=self._tr("status_unknown_error")),
+                is_error=True,
+            )
+            return None
+
+        self._reload_character_library_list()
+        updated_group = dict(group)
+        updated_group["source_title"] = source_title
+        updated_group["source_key"] = source_title
+        updated_group["source_aliases"] = list(source_aliases)
+        updated_group["display_name"] = source_title
+        self._set_status(
+            self._tr(
+                "status_character_work_updated",
+                name=source_title,
+                count=updated_count,
+            )
+        )
+        return updated_group
+
+    def _edit_source_group_title(self, group: dict) -> dict | None:
+        source_title = str(group.get("source_title", "")).strip()
+        if not source_title:
+            return None
+
+        editor = WorkTitleEditorDialog(
+            self,
+            title=self._tr("dialog_work_title_title"),
+            close_tooltip=self._tr("dialog_close_tooltip"),
+            save_text=self._tr("dialog_work_title_save"),
+            placeholder_text=self._tr("dialog_work_title_placeholder"),
+            source_title=source_title,
+            validation_error_text=self._tr("status_character_work_title_required"),
+        )
+        if editor.exec() != QDialog.Accepted:
+            return None
+
+        target_title = editor.result_title()
+        if not target_title or target_title == source_title:
+            return None
+
+        groups = self._collect_work_dialog_items()
+        existing_group = None
+        for item in groups:
+            item_title = str(item.get("source_title", "")).strip()
+            if item_title != target_title:
+                continue
+            if item_title == source_title:
+                continue
+            existing_group = item
+            break
+
+        current_aliases = list(group.get("source_aliases", [])) if isinstance(group.get("source_aliases"), list) else []
+        if existing_group is not None:
+            existing_aliases = list(existing_group.get("source_aliases", [])) if isinstance(existing_group.get("source_aliases"), list) else []
+            if not self._confirm_source_title_overwrite(
+                target_title=target_title,
+                current_aliases=current_aliases,
+                existing_aliases=existing_aliases,
+            ):
+                return None
+
+        try:
+            renamed_count = int(
+                self.character_manager_service.rename_source_title(
+                    source_title=source_title,
+                    new_source_title=target_title,
+                    character_ids=list(group.get("character_ids", [])) if isinstance(group.get("character_ids"), list) else [],
+                )
+            )
+            if renamed_count <= 0:
+                self._set_status(
+                    self._tr("status_character_work_update_failed", error=self._tr("status_unknown_error")),
+                    is_error=True,
+                )
+                return None
+
+            affected_count = renamed_count
+            if existing_group is not None:
+                overwrite_count = int(
+                    self.character_manager_service.update_source_aliases_by_title(
+                        source_title=target_title,
+                        source_aliases=current_aliases,
+                    )
+                )
+                if overwrite_count <= 0:
+                    self._set_status(
+                        self._tr("status_character_work_update_failed", error=self._tr("status_unknown_error")),
+                        is_error=True,
+                    )
+                    return None
+                affected_count = overwrite_count
+        except Exception as error:
+            self._set_status(self._tr("status_character_work_update_failed", error=str(error)), is_error=True)
+            return None
+
+        self._reload_character_library_list()
+        latest_groups = self._collect_work_dialog_items()
+        updated_group = None
+        for item in latest_groups:
+            if str(item.get("source_title", "")).strip() == target_title:
+                updated_group = item
+                break
+        if updated_group is None:
+            updated_group = dict(group)
+            updated_group["source_title"] = target_title
+            updated_group["source_key"] = target_title
+            updated_group["display_name"] = target_title
+
+        self._set_status(
+            self._tr(
+                "status_character_work_updated",
+                name=target_title,
+                count=affected_count,
+            )
+        )
+        return updated_group
+
+    def _open_work_editor_dialog(self) -> None:
+        if self._is_character_delete_running():
+            self._set_status(self._tr("status_character_delete_busy"))
+            return
+        if self._is_character_bulk_build_running():
+            self._set_status(self._tr("status_character_bulk_running"))
+            return
+
+        dialog_items = self._collect_work_dialog_items()
+        if not dialog_items:
+            self._set_status(self._tr("status_character_work_no_source"), is_error=True)
+            return
+
+        dialog = WorkListDialog(
+            self,
+            title=self._tr("dialog_work_list_title"),
+            close_tooltip=self._tr("dialog_close_tooltip"),
+            edit_title_button_text=self._tr("dialog_work_list_edit_title_button"),
+            edit_alias_button_text=self._tr("dialog_work_list_edit_button"),
+            works=dialog_items,
+            edit_title_callback=self._edit_source_group_title,
+            edit_alias_callback=self._edit_source_group_aliases,
+            reload_callback=self._collect_work_dialog_items,
+        )
+        dialog.exec()
+
     def _search_characters_online(self) -> None:
         keyword = self.character_search_input.text().strip()
         if not keyword:
@@ -413,22 +712,28 @@ class MoeGirlTaggerWindowCharacterMixin:
     def _is_character_delete_running(self) -> bool:
         return self.character_delete_thread is not None and self.character_delete_thread.isRunning()
 
+    def _set_character_bulk_progress_visible(self, visible: bool) -> None:
+        container = getattr(self, "character_bulk_progress_container", None)
+        if container is not None:
+            container.setVisible(bool(visible))
+
     def _reset_character_bulk_progress(self) -> None:
         self.character_bulk_progress.setRange(0, 1)
         self.character_bulk_progress.setValue(0)
-        self.character_bulk_progress.setFormat("0 / 0")
-
-    def _set_character_bulk_progress_busy(self) -> None:
-        self.character_bulk_progress.setRange(0, 0)
-        self.character_bulk_progress.setValue(0)
-        self.character_bulk_progress.setFormat(self._tr("status_character_bulk_progress_waiting"))
+        progress_label = getattr(self, "character_bulk_progress_value_label", None)
+        if progress_label is not None:
+            progress_label.setText("0 / 0")
+        self._set_character_bulk_progress_visible(False)
 
     def _set_character_bulk_progress_value(self, processed: int, total: int) -> None:
         safe_total = max(1, int(total))
         bounded_processed = max(0, min(int(processed), safe_total))
         self.character_bulk_progress.setRange(0, safe_total)
         self.character_bulk_progress.setValue(bounded_processed)
-        self.character_bulk_progress.setFormat(f"{bounded_processed} / {safe_total}")
+        progress_label = getattr(self, "character_bulk_progress_value_label", None)
+        if progress_label is not None:
+            progress_label.setText(f"{bounded_processed} / {safe_total}")
+        self._set_character_bulk_progress_visible(True)
 
     def _set_character_bulk_widgets_enabled(self, enabled: bool) -> None:
         local_search_enabled = enabled and not self._is_character_library_search_running()
@@ -437,9 +742,8 @@ class MoeGirlTaggerWindowCharacterMixin:
         self.character_library_search_input.setEnabled(local_search_enabled)
         self.character_library_search_button.setEnabled(local_search_enabled)
         self.character_import_button.setEnabled(enabled)
-        self.character_add_refs_button.setEnabled(enabled)
         self.character_delete_button.setEnabled(enabled)
-        self.character_refresh_button.setEnabled(enabled)
+        self.character_edit_work_button.setEnabled(enabled)
         self.character_bulk_button.setEnabled(enabled)
         self.character_bulk_count_spin.setEnabled(enabled)
         self.character_search_list.setEnabled(enabled)
@@ -448,6 +752,7 @@ class MoeGirlTaggerWindowCharacterMixin:
     def _set_character_delete_widgets_enabled(self, enabled: bool) -> None:
         local_search_enabled = enabled and not self._is_character_library_search_running()
         self.character_delete_button.setEnabled(enabled)
+        self.character_edit_work_button.setEnabled(enabled)
         self.character_library_search_input.setEnabled(local_search_enabled)
         self.character_library_search_button.setEnabled(local_search_enabled)
         self.character_library_list.setEnabled(local_search_enabled)
@@ -520,7 +825,7 @@ class MoeGirlTaggerWindowCharacterMixin:
                 return
 
         self._set_character_bulk_widgets_enabled(False)
-        self._set_character_bulk_progress_busy()
+        self._set_character_bulk_progress_value(processed=0, total=existing_count)
         self._set_status(self._tr("status_character_bulk_start", count=existing_count, limit=limit))
 
         self.character_bulk_thread = QThread(self)
@@ -561,16 +866,9 @@ class MoeGirlTaggerWindowCharacterMixin:
 
     def _on_character_bulk_finished(self, ok: bool, message: str, summary: object) -> None:
         payload = summary if isinstance(summary, dict) else {}
-        processed = int(payload.get("processed_characters", 0) or 0)
-        total = int(payload.get("total_characters", 0) or 0)
-        if total <= 0:
-            total = processed
         self._reload_character_library_list()
+        self._reset_character_bulk_progress()
         if not ok:
-            if total > 0:
-                self._set_character_bulk_progress_value(processed=processed, total=total)
-            else:
-                self._reset_character_bulk_progress()
             if bool(payload.get("interrupted", False)):
                 self._set_status(self._tr("status_character_bulk_interrupted"), is_error=True)
                 return
@@ -581,16 +879,8 @@ class MoeGirlTaggerWindowCharacterMixin:
             return
 
         if bool(payload.get("interrupted", False)):
-            if total > 0:
-                self._set_character_bulk_progress_value(processed=processed, total=total)
-            else:
-                self._reset_character_bulk_progress()
             self._set_status(self._tr("status_character_bulk_interrupted"), is_error=True)
             return
-        if total > 0:
-            self._set_character_bulk_progress_value(processed=total, total=total)
-        else:
-            self._reset_character_bulk_progress()
         self._set_status(
             self._tr(
                 "status_character_bulk_done",
@@ -859,33 +1149,6 @@ class MoeGirlTaggerWindowCharacterMixin:
         self.character_delete_preferred_row = None
         self._set_character_delete_widgets_enabled(True)
 
-    def _append_selected_character_references(self) -> None:
-        selected_ids = self._selected_library_character_ids()
-        if len(selected_ids) > 1:
-            self._set_status(self._tr("status_character_refs_multi_selection"), is_error=True)
-            return
-        character_id = selected_ids[0] if selected_ids else ""
-        if not character_id:
-            self._set_status(self._tr("status_character_refs_no_selection"), is_error=True)
-            return
-        files, _ = QFileDialog.getOpenFileNames(
-            self,
-            self._tr("dialog_choose_images"),
-            str(self._get_dialog_start_dir()),
-            self._tr("dialog_image_files_filter"),
-        )
-        if not files:
-            return
-        image_paths = [Path(file).resolve() for file in files]
-        record = self.character_manager_service.get_character(character_id)
-        name = str(record.get("display_name", "")).strip() if isinstance(record, dict) else character_id
-        try:
-            self.character_manager_service.append_reference_images(character_id, image_paths=image_paths)
-        except Exception as error:
-            self._set_status(self._tr("status_character_refs_failed", error=str(error)), is_error=True)
-            return
-        self._reload_character_library_list()
-        self._set_status(self._tr("status_character_refs_added", name=name, count=len(image_paths)))
 
     def closeEvent(self, event) -> None:
         if self._is_character_bulk_build_running():

@@ -915,6 +915,7 @@ class MoeGirlTaggerWindowAnalysisMixin:
             title=self._tr("tag_editor_dialog_title"),
             left_title=self._tr("tag_editor_left_title"),
             right_title=self._tr("tag_editor_right_title"),
+            search_placeholder=self._tr("tag_editor_search_placeholder"),
             rules_text=self._tr("tag_editor_rules"),
             apply_text=self._tr("tag_editor_apply"),
             cancel_text=self._tr("tag_editor_cancel"),
@@ -1022,6 +1023,7 @@ class MoeGirlTaggerWindowAnalysisMixin:
             title=self._tr("tag_editor_dialog_title"),
             left_title=self._tr("tag_editor_left_title"),
             right_title=self._tr("tag_editor_right_title"),
+            search_placeholder=self._tr("tag_editor_search_placeholder"),
             rules_text=self._tr("tag_editor_rules"),
             apply_text=self._tr("tag_editor_apply"),
             cancel_text=self._tr("tag_editor_cancel"),
@@ -1140,14 +1142,32 @@ class MoeGirlTaggerWindowAnalysisMixin:
         except Exception:
             return []
 
-        categories = payload.get("categories", []) if isinstance(payload, dict) else []
-        if not isinstance(categories, list):
+        categories: list[dict] = []
+        if isinstance(payload, dict):
+            base_categories = payload.get("categories", [])
+            if isinstance(base_categories, list):
+                categories.extend([item for item in base_categories if isinstance(item, dict)])
+
+        extension_path = taxonomy_path.parent / "sensitive_terms.json"
+        if extension_path.exists():
+            try:
+                extension_payload = json.loads(extension_path.read_text(encoding="utf-8"))
+            except Exception:
+                extension_payload = {}
+            extension_taxonomy = extension_payload.get("taxonomy", {}) if isinstance(extension_payload, dict) else {}
+            if isinstance(extension_taxonomy, dict):
+                extension_categories = extension_taxonomy.get("categories", [])
+                if isinstance(extension_categories, list):
+                    categories.extend([item for item in extension_categories if isinstance(item, dict)])
+
+        if not categories:
             return []
 
         groups: list[dict] = []
+        category_group_map: dict[str, dict] = {}
+        category_tag_sets: dict[str, set[str]] = {}
+
         for category in categories:
-            if not isinstance(category, dict):
-                continue
             category_id = str(category.get("id", "")).strip()
             category_name = pick_localized_name(
                 language_code=self.current_language,
@@ -1156,23 +1176,38 @@ class MoeGirlTaggerWindowAnalysisMixin:
             )
             if not category_name:
                 category_name = category_id
+            if not category_name:
+                continue
+
+            group_identity = category_id or category_name.casefold()
+            group = category_group_map.get(group_identity)
+            if group is None:
+                group = {
+                    "group_key": f"feature:{category_id or group_identity}",
+                    "group_name": f"{self._tr('tag_editor_feature_group_prefix')}{category_name}",
+                    "items": [],
+                }
+                category_group_map[group_identity] = group
+                category_tag_sets[group_identity] = set()
+                groups.append(group)
+
             tags_payload = category.get("tags", [])
             if not isinstance(tags_payload, list):
                 continue
+            seen_tag_ids = category_tag_sets[group_identity]
 
-            items: list[dict] = []
             for tag in tags_payload:
                 if not isinstance(tag, dict):
                     continue
                 tag_id = str(tag.get("id", "")).strip()
-                if not tag_id:
+                if not tag_id or tag_id in seen_tag_ids:
                     continue
                 tag_name = pick_localized_name(
                     language_code=self.current_language,
                     name_i18n=self._collect_name_i18n(tag),
                     fallback_text=tag_id,
                 )
-                items.append(
+                group["items"].append(
                     {
                         "value": tag_id,
                         "display": tag_name,
@@ -1180,16 +1215,9 @@ class MoeGirlTaggerWindowAnalysisMixin:
                         "aliases": self._build_feature_aliases(tag, tag_id, tag_name),
                     }
                 )
-            if not items:
-                continue
-            groups.append(
-                {
-                    "group_key": f"feature:{category_id}",
-                    "group_name": f"{self._tr('tag_editor_feature_group_prefix')}{category_name}",
-                    "items": items,
-                }
-            )
-        return groups
+                seen_tag_ids.add(tag_id)
+
+        return [group for group in groups if group.get("items")]
 
     def _build_tag_editor_character_groups(self) -> tuple[list[dict], dict[str, str], dict[str, str]]:
         records = self.character_manager_service.list_characters()
@@ -1738,3 +1766,4 @@ class MoeGirlTaggerWindowAnalysisMixin:
             self.status_label.setStyleSheet("color: #c2362d;")
         else:
             self.status_label.setStyleSheet("color: #637083;")
+
